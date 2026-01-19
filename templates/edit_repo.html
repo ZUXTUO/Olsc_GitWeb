@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block title %}编辑仓库信息 - {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; font-weight: 400; margin: 0 0 8px 0;">
+            <i class="fas fa-cog" style="margin-right: 8px;"></i>编辑仓库信息
+        </h2>
+        <div style="color: var(--color-fg-muted);">{{ repo_name }}</div>
+    </div>
+
+    <div class="Box">
+        <div class="Box-header">
+            <h3 style="margin: 0; font-size: 14px;">基本信息</h3>
+        </div>
+        <div style="padding: 20px;">
+            <form method="POST">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">
+                        仓库描述
+                    </label>
+                    <textarea name="description" rows="3"
+                        style="width: 100%; padding: 8px 12px; font-size: 14px; font-family: var(--font-stack); background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 6px; color: var(--color-fg-default); resize: vertical;"
+                        placeholder="简要描述此仓库的用途...">{{ description }}</textarea>
+                    <div style="font-size: 12px; color: var(--color-fg-muted); margin-top: 4px;">
+                        可选。将在仓库列表中显示。
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">
+                        主要语言
+                    </label>
+                    <input type="text" name="language" value="{{ language }}"
+                        style="width: 100%; padding: 8px 12px; font-size: 14px;"
+                        placeholder="例如：Python, JavaScript, C++">
+                    <div style="font-size: 12px; color: var(--color-fg-muted); margin-top: 4px;">
+                        可选。指定此仓库的主要编程语言。
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <a href="{{ url_for('index') }}" class="btn">取消</a>
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,319 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ repo_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <!-- Branch Selector -->
+        <div style="position: relative; display: inline-block;">
+            <button class="btn btn-sm"
+                style="background: var(--color-canvas-subtle); display: flex; align-items: center; gap: 4px;"
+                onclick="toggleBranchDropdown()">
+                <i class="fas fa-code-branch"></i>
+                <span style="font-weight: 600;">{{ display_ref }}</span>
+                <i class="fas fa-caret-down"></i>
+            </button>
+            <div id="branch-dropdown"
+                style="display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 6px; width: 300px; max-width: 90vw; max-height: 80vh; z-index: 110; box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
+                <div
+                    style="padding: 8px 16px; border-bottom: 1px solid var(--color-border-default); font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    选择分支或标签
+                    <i class="fas fa-times" style="cursor: pointer;" onclick="toggleBranchDropdown()"></i>
+                </div>
+                <div style="padding: 8px;">
+                    <input type="text" placeholder="过滤分支/标签..."
+                        style="width: 100%; font-size: 12px; margin-bottom: 8px;" id="ref-filter"
+                        onkeyup="filterRefs()">
+
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <div
+                            style="padding: 4px 8px; font-size: 12px; font-weight: 600; color: var(--color-fg-muted); background: var(--color-canvas-subtle);">
+                            分支</div>
+                        {% for b in refs.branches %}
+                        <a href="{{ url_for('view_tree', repo_name=repo_name, ref=b, subpath=current_path) }}"
+                            class="dropdown-item ref-item"
+                            style="padding: 8px 12px; display: block; text-decoration: none; color: var(--color-fg-default); font-size: 13px;">
+                            <i class="fas fa-check"
+                                style="width: 16px; visibility: {% if b == display_ref %}visible{% else %}hidden{% endif %}; color: var(--color-fg-default);"></i>
+                            {{ b }}
+                        </a>
+                        {% endfor %}
+
+                        <div
+                            style="padding: 4px 8px; font-size: 12px; font-weight: 600; color: var(--color-fg-muted); background: var(--color-canvas-subtle);">
+                            标签</div>
+                        {% for t in refs.tags %}
+                        <a href="{{ url_for('view_tree', repo_name=repo_name, ref=t, subpath=current_path) }}"
+                            class="dropdown-item ref-item"
+                            style="padding: 8px 12px; display: block; text-decoration: none; color: var(--color-fg-default); font-size: 13px;">
+                            <i class="fas fa-check"
+                                style="width: 16px; visibility: {% if t == display_ref %}visible{% else %}hidden{% endif %}; color: var(--color-fg-default);"></i>
+                            {{ t }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; font-weight: 600; font-size: 14px; gap: 8px;">
+            <i class="fas fa-folder" style="color: var(--color-fg-muted);"></i>
+            <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref) }}" style="color: var(--color-accent-fg);">{{
+                repo_name }}</a>
+            {% if current_path %}
+            {% set parts = current_path.split('/') %}
+            {% set ns = namespace(path='') %}
+            {% for part in parts %}
+            {% if part %}
+            {% set ns.path = ns.path + part + '/' %}
+            <span style="color: var(--color-fg-muted);">/</span>
+            <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=ns.path.rstrip('/')) }}"
+                style="color: var(--color-accent-fg);">{{ part }}</a>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    <div style="display: flex; gap: 8px; position: relative;">
+        <!-- Code Button Dropdown -->
+        <div style="position: relative;">
+            <button class="btn btn-sm btn-primary" style="font-weight: 600;" onclick="toggleCodeDropdown()">
+                代码 <i class="fas fa-caret-down"></i>
+            </button>
+
+            <div id="code-dropdown"
+                style="display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 6px; width: 350px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                <div style="padding: 0;">
+                    <div
+                        style="padding: 8px 16px; border-bottom: 1px solid var(--color-border-default); font-weight: 600;">
+                        克隆
+                    </div>
+
+                    <div style="padding: 16px;">
+                        <div
+                            style="display: flex; gap: 0; border-bottom: 1px solid var(--color-border-default); margin-bottom: 16px;">
+                            <div
+                                style="padding: 8px 12px; border-bottom: 2px solid var(--color-danger-fg); cursor: pointer; font-weight: 600;">
+                                HTTPS</div>
+                            <div style="padding: 8px 12px; cursor: pointer; color: var(--color-fg-muted);">SSH</div>
+                            <div style="padding: 8px 12px; cursor: pointer; color: var(--color-fg-muted);">GitHub CLI
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <input type="text" id="clone-url" value="{{ request.host_url }}{{ repo_name }}.git" readonly
+                                style="flex: 1; font-family: monospace; font-size: 12px;">
+                            <button class="btn btn-sm" onclick="copyCloneUrl()"><i class="far fa-copy"></i></button>
+                        </div>
+
+                        <div style="font-size: 12px; color: var(--color-fg-muted); margin-bottom: 16px;">
+                            使用 Git 或 checkout with SVN 使用此 URL。
+                        </div>
+
+                        <div
+                            style="border-top: 1px solid var(--color-border-default); padding-top: 8px; margin-top: 8px;">
+                            <div class="dropdown-item" onclick="gitAction('{{ repo_name }}', 'pull')"
+                                style="padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-download"></i> 从远程拉取更改
+                            </div>
+                            <div class="dropdown-item" onclick="gitAction('{{ repo_name }}', 'push')"
+                                style="padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-upload"></i> 推送到远程
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dropdown-item:hover {
+        background-color: var(--color-btn-hover-bg);
+        border-radius: 4px;
+    }
+</style>
+
+<script>
+    function toggleBranchDropdown() {
+        const d = document.getElementById('branch-dropdown');
+        d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        if (d.style.display === 'block') {
+            document.getElementById('ref-filter').focus();
+        }
+    }
+
+    function filterRefs() {
+        const input = document.getElementById('ref-filter');
+        const filter = input.value.toLowerCase();
+        const items = document.getElementsByClassName('ref-item');
+        for (let i = 0; i < items.length; i++) {
+            const text = items[i].textContent || items[i].innerText;
+            if (text.toLowerCase().indexOf(filter) > -1) {
+                items[i].style.display = "";
+            } else {
+                items[i].style.display = "none";
+            }
+        }
+    }
+
+    function toggleCodeDropdown() {
+        const d = document.getElementById('code-dropdown');
+        d.style.display = d.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function copyCloneUrl() {
+        const urlInput = document.getElementById('clone-url');
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999);
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                alert('已复制地址: ' + urlInput.value);
+            }).catch(err => {
+                console.error('Copy failed', err);
+                document.execCommand('copy');
+                alert('已复制地址 (Fallback): ' + urlInput.value);
+            });
+        } else {
+            document.execCommand('copy');
+            alert('已复制地址: ' + urlInput.value);
+        }
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (event) {
+        const branchDropdown = document.getElementById('branch-dropdown');
+        const branchButton = document.querySelector('button[onclick="toggleBranchDropdown()"]');
+        if (branchDropdown && branchDropdown.style.display === 'block' && !branchDropdown.contains(event.target) && !branchButton.contains(event.target)) {
+            branchDropdown.style.display = 'none';
+        }
+
+        const codeDropdown = document.getElementById('code-dropdown');
+        const codeButton = document.querySelector('button[onclick="toggleCodeDropdown()"]');
+        if (codeDropdown && codeDropdown.style.display === 'block' && !codeDropdown.contains(event.target) && !codeButton.contains(event.target)) {
+            codeDropdown.style.display = 'none';
+        }
+    });
+</script>
+
+{% if status %}
+<div
+    style="margin-bottom: 16px; padding: 16px; background: rgba(210, 168, 62, 0.1); border: 1px solid #d2a83e; border-radius: 6px; color: #e3b341;">
+    <h3 style="margin: 0 0 8px 0; font-size: 14px;">未提交的更改</h3>
+    <pre style="background: transparent; border: none; padding: 0; color: inherit; font-size: 12px;">{{ status }}</pre>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <input type="text" id="commit-msg" placeholder="提交信息..." style="flex:1;">
+        <button onclick="handleCommit()" class="btn btn-primary btn-sm">提交更改</button>
+    </div>
+</div>
+<script>
+    function handleCommit() {
+        const msg = document.getElementById('commit-msg').value;
+        if (!msg) return alert('请填写提交信息');
+        gitAction('{{ repo_name }}', 'commit', { message: msg });
+    }
+</script>
+{% endif %}
+
+<div class="Box">
+    <div class="Box-header">
+        {% if latest_commit %}
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; flex: 1;">
+                <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="24" height="24"
+                    style="border-radius: 50%;">
+                <span style="font-weight: 600;">{{ latest_commit.author }}</span>
+                <a href="{{ url_for('view_commit', repo_name=repo_name, commit_hash=latest_commit.hash) }}"
+                    style="color: var(--color-fg-default); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ latest_commit.message }}
+                </a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-fg-muted);">
+                <a href="{{ url_for('view_commit', repo_name=repo_name, commit_hash=latest_commit.hash) }}"
+                    style="font-family: monospace; color: var(--color-accent-fg);">
+                    {{ latest_commit.hash[:7] }}
+                </a>
+                <span>{{ latest_commit.time }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="24" height="24"
+                style="border-radius: 50%;">
+            <span style="font-weight: 600;">Olsc</span>
+            <span style="color: var(--color-fg-muted);">查看 {{ display_ref }} 的文件内容</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        {% if current_path %}
+        <div class="Box-row">
+            <div class="file-icon"><i class="fas fa-ellipsis-h" style="color: var(--color-accent-fg);"></i></div>
+            <div class="file-name">
+                {% set parent_path = current_path.split('/')[:-1]|join('/') %}
+                <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=parent_path) }}"
+                    style="font-weight: 700;">..</a>
+            </div>
+            <div class="file-info"></div>
+        </div>
+        {% endif %}
+
+        {% for item in items %}
+        <div class="Box-row">
+            <div class="file-icon">
+                {% if item.is_dir %}
+                <i class="fas fa-folder" style="color: #54aeff;"></i>
+                {% else %}
+                <i class="far fa-file" style="color: var(--color-fg-muted);"></i>
+                {% endif %}
+            </div>
+            <div class="file-info">
+                <div class="file-name" style="flex: 0 0 250px;">
+                    {% if item.is_dir %}
+                    <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=item.path) }}">{{ item.name
+                        }}</a>
+                    {% else %}
+                    <a href="{{ url_for('view_file', repo_name=repo_name, ref=ref, filepath=item.path) }}">{{ item.name
+                        }}</a>
+                    {% endif %}
+                </div>
+                <div
+                    style="flex: 1; color: var(--color-fg-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 16px;">
+                    {{ item.commit_message if item.commit_message else '无提交信息' }}
+                </div>
+                <div class="file-meta" style="width: 200px; text-align: right; font-size: 12px;">
+                    {{ item.commit_time if item.commit_time else '' }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if readme %}
+<div class="Box" style="margin-top: 24px;">
+    <div class="Box-header" style="font-weight: 600;">
+        <i class="fas fa-book-open" style="margin-right: 8px;"></i> README
+    </div>
+    {% if readme_is_markdown %}
+    <div class="markdown-body" id="readme-content" style="border: none; padding: 16px;">
+        <!-- Markdown will be rendered here -->
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script>
+        const readmeText = {{ readme| tojson }};
+        document.getElementById('readme-content').innerHTML = marked.parse(readmeText);
+    </script>
+    {% else %}
+    <div class="markdown-body" style="border: none;">
+        {{ readme|safe }}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

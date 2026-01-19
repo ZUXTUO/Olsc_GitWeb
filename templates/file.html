@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ filepath }}{% endblock %}
+
+{% block content %}
+<div style="font-size: 13px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+    <i class="fas fa-folder" style="color: var(--color-fg-muted);"></i>
+    <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref) }}"
+        style="color: var(--color-accent-fg); font-weight: 600;">{{ repo_name }}</a>
+    <span style="color: var(--color-fg-muted);">/</span>
+    {% set parts = filepath.split('/') %}
+    {% set ns = namespace(path='') %}
+    {% for part in parts[:-1] %}
+    {% set ns.path = ns.path + part + '/' %}
+    <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=ns.path.rstrip('/')) }}"
+        style="color: var(--color-accent-fg); font-weight: 600;">{{ part }}</a>
+    <span style="color: var(--color-fg-muted);">/</span>
+    {% endfor %}
+    <span style="font-weight: 600; color: var(--color-fg-default);">{{ parts[-1] }}</span>
+</div>
+
+<div class="Box">
+    <div class="Box-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 13px; font-weight: 600;">
+            <i class="far fa-file-code" style="margin-right: 8px;"></i>{{ filepath.split('/')[-1] }}
+            <span style="font-weight: 400; color: var(--color-fg-muted); margin-left: 8px;">({{ display_ref }})</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <div class="file-meta"
+                style="font-size: 12px; color: var(--color-fg-muted); display: flex; align-items: center;">
+                {% if file_size %}
+                <span>{{ file_size }}</span>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('view_file', repo_name=repo_name, ref=ref, filepath=filepath) }}?raw=1"
+                class="btn btn-sm" target="_blank">
+                原始数据
+            </a>
+        </div>
+    </div>
+
+    {% if is_image %}
+    <div style="background: var(--color-canvas-subtle); padding: 32px; text-align: center;">
+        <img src="{{ url_for('view_file', repo_name=repo_name, ref=ref, filepath=filepath) }}?raw=1"
+            style="max-width: 100%; border-radius: 6px; box-shadow: 0 3px 12px rgba(0,0,0,0.3);" alt="{{ filepath }}">
+    </div>
+    {% elif is_video %}
+    <div style="background: var(--color-canvas-subtle); padding: 32px; text-align: center;">
+        <video controls style="max-width: 100%; border-radius: 6px; box-shadow: 0 3px 12px rgba(0,0,0,0.3);">
+            <source src="{{ url_for('view_file', repo_name=repo_name, filepath=filepath) }}?raw=1">
+            您的浏览器不支持 video 标签。
+        </video>
+    </div>
+    {% elif is_pdf %}
+    <div style="background: var(--color-canvas-subtle); padding: 16px;">
+        <iframe src="{{ url_for('view_file', repo_name=repo_name, filepath=filepath) }}?raw=1"
+            style="width: 100%; height: 800px; border: none; border-radius: 6px;">
+        </iframe>
+    </div>
+    {% elif is_markdown %}
+    <div class="markdown-body" id="markdown-content" style="border: none; padding: 32px; border-radius: 0;">
+        <!-- Markdown will be rendered here -->
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script>
+        const markdownText = {{ content| tojson }};
+        document.getElementById('markdown-content').innerHTML = marked.parse(markdownText);
+    </script>
+    {% elif is_binary %}
+    <div style="padding: 32px; text-align: center; color: var(--color-fg-muted);">
+        <i class="fas fa-file-code" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+        <p>这是一个二进制文件，无法显示。</p>
+        <a href="{{ url_for('view_file', repo_name=repo_name, filepath=filepath) }}?raw=1" class="btn btn-primary"
+            download>
+            <i class="fas fa-download"></i> 下载文件
+        </a>
+    </div>
+    {% else %}
+    <div style="background-color: var(--color-canvas-subtle); overflow-x: auto; padding: 0;">
+        <table class="diff-table">
+            {% for line in content.splitlines() %}
+            <tr>
+                <td class="blob-num">{{ loop.index }}</td>
+                <td class="blob-code">{{ line }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

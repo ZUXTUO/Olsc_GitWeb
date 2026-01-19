@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body
+    style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--color-canvas-default);">
+    <div style="width: 100%; max-width: 340px; padding: 16px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="80" height="80"
+                style="border-radius: 50%; margin-bottom: 16px;">
+            <h1 style="font-size: 24px; font-weight: 400; margin: 0;">Git 仓库管理器</h1>
+        </div>
+
+        <div class="Box">
+            <div class="Box-header" style="text-align: center;">
+                <h3 style="margin: 0; font-size: 16px;">登录到您的账户</h3>
+            </div>
+            <div style="padding: 20px;">
+                {% with messages = get_flashed_messages(category_filter=["error"], with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}" style="margin-bottom: 16px; padding: 12px; border-radius: 6px;">
+                    {{ message }}</div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">密码</label>
+                        <input type="password" name="password" required autofocus
+                            style="width: 100%; padding: 8px 12px; font-size: 14px;" placeholder="输入您的密码">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; text-align: center;">
+                        登录
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+
+{% block title %}比较变更 - {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <h2 style="font-size: 24px; font-weight: 400;"><i class="fas fa-exchange-alt" style="margin-right: 8px;"></i>比较变更
+    </h2>
+    <div style="color: var(--color-fg-muted);">比较两个提交、分支或标签之间的差异。</div>
+</div>
+
+<div class="Box" style="margin-bottom: 24px;">
+    <div class="Box-header">
+        配置比较
+    </div>
+    <div style="padding: 16px;">
+        <form method="POST" style="display: flex; align-items: flex-end; gap: 16px;">
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">基准</label>
+                <input type="text" name="base" value="{{ base }}" placeholder="例如: master, HEAD^" style="width: 100%;">
+            </div>
+            <div style="padding-bottom: 8px; color: var(--color-fg-muted);">
+                <i class="fas fa-arrow-right"></i>
+            </div>
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600;">比较对象</label>
+                <input type="text" name="head" value="{{ head }}" placeholder="例如: feature-branch" style="width: 100%;">
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">比较</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if diff %}
+<div class="Box">
+    <div class="Box-header">
+        <strong>{{ base }}</strong> ... <strong>{{ head }}</strong> 的差异
+    </div>
+    <div style="background: var(--color-canvas-default); overflow-x: auto;">
+        <div id="diff-content" style="margin: 0; font-family: monospace; font-size: 12px;"></div>
+    </div>
+</div>
+
+<script>
+    // Parse and colorize diff
+    const diffText = {{ diff| tojson }};
+    const lines = diffText.split('\n');
+    let html = '';
+
+    lines.forEach(line => {
+        let bgColor = '';
+        let textColor = '';
+
+        if (line.startsWith('+')) {
+            bgColor = 'rgba(46, 160, 67, 0.15)';
+            textColor = '#3fb950';
+        } else if (line.startsWith('-')) {
+            bgColor = 'rgba(248, 81, 73, 0.15)';
+            textColor = '#f85149';
+        } else if (line.startsWith('@@')) {
+            bgColor = 'rgba(56, 139, 253, 0.15)';
+            textColor = '#58a6ff';
+        } else if (line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++')) {
+            textColor = '#8b949e';
+        }
+
+        const escapedLine = line
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/ /g, '&nbsp;');
+
+        html += `<div style="padding: 0 16px; ${bgColor ? 'background: ' + bgColor + ';' : ''} ${textColor ? 'color: ' + textColor + ';' : ''}">${escapedLine || '&nbsp;'}</div>`;
+    });
+
+    document.getElementById('diff-content').innerHTML = html;
+</script>
+{% elif base and head %}
+<div class="Box" style="text-align: center; padding: 40px;">
+    <i class="fas fa-exclamation-triangle"
+        style="font-size: 48px; color: var(--color-attention-fg); opacity: 0.5; margin-bottom: 16px; display: block;"></i>
+    <h3>未发现更改或引用无效。</h3>
+    <p style="color: var(--color-fg-muted);">请检查输入的分支、标签或提交哈希是否正确。</p>
+</div>
+{% endif %}
+
+{% endblock %}

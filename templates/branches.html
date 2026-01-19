@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}分支 - {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div class="Box">
+    <div class="Box-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 14px;">
+            <i class="fas fa-code-branch" style="margin-right: 8px;"></i>分支
+        </h3>
+        {% if current_branch %}
+        <span style="font-size: 12px; color: var(--color-fg-muted);">
+            当前分支: <span style="font-weight: 600; color: var(--color-fg-default);">{{ current_branch }}</span>
+        </span>
+        {% endif %}
+    </div>
+
+    {% for branch in branches %}
+    <div class="Box-row" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <i class="fas fa-code-branch"
+                    style="color: {% if branch.is_current %}var(--color-success-fg){% else %}var(--color-fg-muted){% endif %}; font-size: 14px;"></i>
+                <a href="{{ url_for('view_tree', repo_name=repo_name, ref=branch.name) }}"
+                    style="font-family: monospace; font-size: 14px; font-weight: 600; color: {% if branch.is_current %}var(--color-success-fg){% else %}var(--color-accent-fg){% endif %}; text-decoration: none;">
+                    {{ branch.name }}
+                </a>
+                {% if branch.is_current %}
+                <span
+                    style="background: var(--color-success-emphasis); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                    默认
+                </span>
+                {% endif %}
+            </div>
+            <div style="font-size: 12px; color: var(--color-fg-muted); margin-left: 22px;">
+                {{ branch.message }}
+            </div>
+        </div>
+        <div style="text-align: right; font-size: 12px; color: var(--color-fg-muted);">
+            {{ branch.date }}
+        </div>
+    </div>
+    {% else %}
+    <div style="padding: 40px; text-align: center; color: var(--color-fg-muted);">
+        <i class="fas fa-code-branch" style="font-size: 48px; margin-bottom: 16px; display: block; opacity: 0.3;"></i>
+        <p>没有分支。</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

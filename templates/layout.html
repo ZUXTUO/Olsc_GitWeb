@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GitHub{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .flash {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
+        }
+
+        .flash-error {
+            background-color: rgba(248, 81, 73, 0.1);
+            /* Red */
+            border-color: rgba(248, 81, 73, 0.4);
+            color: #ff7b72;
+        }
+
+        .flash-success {
+            background-color: rgba(63, 185, 80, 0.1);
+            /* Green */
+            border-color: rgba(63, 185, 80, 0.4);
+            color: #56d364;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-logo">
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="32" height="32"
+                style="border-radius: 50%; vertical-align: middle;">
+        </div>
+        <input type="text" class="header-search" placeholder="搜索或跳转...">
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+            {% if session.get('authenticated') %}
+            <a href="{{ url_for('logout') }}" style="color: var(--color-header-text); font-size: 13px;">
+                <i class="fas fa-sign-out-alt"></i> 登出
+            </a>
+            {% endif %}
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="20" height="20"
+                style="border-radius: 50%; border: 1px solid var(--color-border-default);">
+        </div>
+    </header>
+
+    {% if repo_name %}
+    <div style="background-color: var(--color-canvas-subtle); border-bottom: 1px solid var(--color-border-default);">
+        <div class="container" style="padding-bottom: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                <h1 style="font-size: 20px; font-weight: 400; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-book" style="color: var(--color-fg-muted); font-size: 16px;"></i>
+                    <a href="/" style="color: var(--color-accent-fg);">Olsc</a>
+                    <span style="color: var(--color-fg-muted);">/</span>
+                    <a href="{{ url_for('view_repo', repo_name=repo_name) }}"
+                        style="color: var(--color-accent-fg); font-weight: 600;">{{ repo_name }}</a>
+                    <span
+                        style="border: 1px solid var(--color-border-default); border-radius: 20px; padding: 0 7px; font-size: 12px; color: var(--color-fg-muted);">公开</span>
+                </h1>
+            </div>
+
+            <nav class="UnderlineNav" style="border-bottom: none; margin-top: 0;">
+                <a href="{{ url_for('view_repo', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if request.endpoint == 'view_repo' and not 'commits' in request.path %}selected{% endif %}">
+                    <i class="fas fa-code"></i> 代码
+                </a>
+                <a href="{{ url_for('view_commits', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'commits' in request.path %}selected{% endif %}">
+                    <i class="fas fa-history"></i> 提交
+                </a>
+                <a href="{{ url_for('view_branches', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'branches' in request.path %}selected{% endif %}">
+                    <i class="fas fa-code-branch"></i> 分支
+                </a>
+                <a href="{{ url_for('view_tags', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'tags' in request.path %}selected{% endif %}">
+                    <i class="fas fa-tag"></i> 标签
+                </a>
+                <a href="{{ url_for('compare_nodes', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'compare' in request.path %}selected{% endif %}">
+                    <i class="fas fa-exchange-alt"></i> 比较
+                </a>
+                <a href="{{ url_for('view_settings', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'settings' in request.path %}selected{% endif %}">
+                    <i class="fas fa-cog"></i> 设置
+                </a>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="container">
+        {% with messages = get_flashed_messages(category_filter=["error", "success"], with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer
+        style="margin-top: 40px; border-top: 1px solid var(--color-border-default); padding: 40px 0; text-align: center; color: var(--color-fg-muted); font-size: 12px;">
+        <div style="display: flex; justify-content: center; gap: 8px; align-items: center; margin-bottom: 8px;">
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="24" height="24"
+                style="border-radius: 50%;">
+            <span>© 2026 Olsc, Inc.</span>
+        </div>
+    </footer>
+
+    <script>
+        // Common JS helper for actions
+        async function gitAction(repoName, action, payload = {}) {
+            let actionName = action;
+            if (action === 'pull') actionName = '拉取';
+            if (action === 'push') actionName = '推送';
+            if (action === 'commit') actionName = '提交';
+
+            if (!confirm('确定要 ' + actionName + ' 吗?')) return;
+
+            try {
+                const res = await fetch(`/${repoName}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, ...payload })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('错误: ' + (data.error || data.stderr));
+                }
+            } catch (e) {
+                alert('请求失败');
+            }
+        }
+    </script>
+</body>
+
+</html>

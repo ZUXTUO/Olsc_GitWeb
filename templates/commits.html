@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block title %}提交记录 · {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div class="Box">
+    <div class="Box-header">
+        <h3 style="margin: 0; font-size: 14px;">提交历史</h3>
+    </div>
+
+    {% for commit in commits %}
+    <div class="Box-row" style="flex-direction: column; align-items: flex-start;">
+        <div style="width: 100%; display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
+                <a href="{{ url_for('view_commit', repo_name=repo_name, commit_hash=commit.hash) }}"
+                    style="color: var(--color-fg-default);">
+                    {{ commit.message }}
+                </a>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <span
+                    style="font-family: monospace; color: var(--color-fg-muted); background: rgba(110,118,129,0.4); padding: 2px 4px; border-radius: 4px; font-size: 12px;">{{
+                    commit.hash[:7] }}</span>
+                <button class="btn btn-sm" style="border: none; padding: 2px;"
+                    onclick="navigator.clipboard.writeText('{{ commit.hash }}'); alert('已复制哈希: {{ commit.hash[:7] }}')"><i
+                        class="far fa-copy"></i></button>
+                <a href="{{ url_for('view_tree', repo_name=repo_name, ref=commit.hash) }}" class="btn btn-sm"
+                    style="border: none; padding: 2px; color: var(--color-fg-muted);" title="浏览此时的文件">
+                    <i class="fas fa-code"></i>
+                </a>
+            </div>
+        </div>
+
+        <div style="font-size: 12px; color: var(--color-fg-muted); display: flex; align-items: center; gap: 4px;">
+            <img src="{{ url_for('static', filename='img/Logo.jpg') }}" width="16" height="16"
+                style="border-radius: 50%;">
+            <span style="font-weight: 600;">{{ commit.author }}</span>
+            <span>提交于 {{ commit.date }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div style="padding: 20px; text-align: center;">没有找到提交记录。</div>
+    {% endfor %}
+</div>
+{% endblock %}
