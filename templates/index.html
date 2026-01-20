@@ -53,7 +53,7 @@
                 <div>
                     <h3 style="margin: 0 0 8px 0; font-size: 20px;">
                         <a href="{{ url_for('view_repo', repo_name=repo.name) }}"
-                            style="font-weight: 600; color: var(--color-accent-fg);">{{ repo.name }}</a>
+                            style="font-weight: 600; color: #ffffff;">{{ repo.name }}</a>
                         <span
                             style="border: 1px solid var(--color-border-default); border-radius: 20px; padding: 0 7px; font-size: 12px; color: var(--color-fg-muted); margin-left: 8px; font-weight: 400;">公开</span>
                     </h3>
@@ -61,8 +61,7 @@
                         {{ repo.description if repo.description else '暂无描述' }}
                     </div>
                     <div style="font-size: 12px; color: var(--color-fg-muted);">
-                        <i class="fas fa-circle"
-                            style="font-size: 8px; margin-right: 4px; color: var(--color-accent-fg);"></i>
+                        <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px; color: #ffffff;"></i>
                         {{ repo.language }}
                     </div>
                 </div>

@@ -18,6 +18,11 @@ import db
 
 app = Flask(__name__)
 app.secret_key = 'git-manager-secret-key-very-secure-random-string-2026' # 闪存消息所需的密钥
+# 设置最大请求体大小为 500MB (支持大型 Git 推送)
+# 设置最大请求体大小为 None (禁用限制，交由服务器内存处理)
+app.config['MAX_CONTENT_LENGTH'] = None
+
+print(f"配置检查: MAX_CONTENT_LENGTH = {app.config.get('MAX_CONTENT_LENGTH')}")
 
 # 配置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -230,6 +235,109 @@ def index():
                     'language': info.get('language', '混合语言')
                 })
     return render_template('index.html', repos=repos)
+
+@app.route('/search')
+@require_auth
+def search():
+    """搜索项目、代码和提交"""
+    query = request.args.get('q', '').strip()
+    filter_type = request.args.get('type', '')  # repositories, code, commits
+    
+    if not query:
+        return redirect(url_for('index'))
+    
+    query_lower = query.lower()
+    
+    # 搜索仓库
+    repositories = []
+    repo_info_map = db.get_all_repo_info()
+    
+    if os.path.exists(DATA_DIR):
+        for d in os.listdir(DATA_DIR):
+            if d.startswith('.'): continue
+            path = os.path.join(DATA_DIR, d)
+            if os.path.isdir(path):
+                info = repo_info_map.get(d, {})
+                description = info.get('description', '')
+                language = info.get('language', '')
+                
+                # 检查是否匹配搜索关键词
+                if (query_lower in d.lower() or 
+                    query_lower in description.lower() or 
+                    query_lower in language.lower()):
+                    repositories.append({
+                        'name': d,
+                        'description': description,
+                        'language': language
+                    })
+    
+    # 搜索代码
+    code_results = []
+    if os.path.exists(DATA_DIR):
+        for repo_name in os.listdir(DATA_DIR):
+            if repo_name.startswith('.'): continue
+            repo_path = os.path.join(DATA_DIR, repo_name)
+            if not os.path.isdir(repo_path): continue
+            
+            # 使用 git grep 搜索代码
+            result = run_git_command(repo_path, ['grep', '-n', '-i', '--', query])
+            if result['success'] and result['stdout']:
+                for line in result['stdout'].splitlines()[:10]:  # 限制每个仓库最多10条结果
+                    # 格式: filename:line_number:content
+                    parts = line.split(':', 2)
+                    if len(parts) >= 3:
+                        filename, line_num, content = parts
+                        code_results.append({
+                            'repo': repo_name,
+                            'file': filename,
+                            'line_number': line_num,
+                            'snippet': content.strip(),
+                            'ref': 'HEAD'
+                        })
+    
+    # 搜索提交
+    commits = []
+    if os.path.exists(DATA_DIR):
+        for repo_name in os.listdir(DATA_DIR):
+            if repo_name.startswith('.'): continue
+            repo_path = os.path.join(DATA_DIR, repo_name)
+            if not os.path.isdir(repo_path): continue
+            
+            # 搜索提交信息和作者
+            result = run_git_command(repo_path, [
+                'log', 
+                '--all',
+                '--grep=' + query, 
+                '--author=' + query,
+                '--pretty=format:%H|%an|%ar|%s',
+                '-n', '10'
+            ])
+            
+            if result['success'] and result['stdout']:
+                for line in result['stdout'].splitlines():
+                    parts = line.split('|', 3)
+                    if len(parts) >= 4:
+                        commits.append({
+                            'repo': repo_name,
+                            'hash': parts[0],
+                            'author': parts[1],
+                            'date': parts[2],
+                            'message': parts[3]
+                        })
+    
+    # 计算总数
+    total_results = len(repositories) + len(code_results) + len(commits)
+    
+    return render_template('search.html',
+                          query=query,
+                          filter_type=filter_type,
+                          repositories=repositories if not filter_type or filter_type == 'repositories' else [],
+                          code_results=code_results if not filter_type or filter_type == 'code' else [],
+                          commits=commits if not filter_type or filter_type == 'commits' else [],
+                          total_results=total_results,
+                          repo_count=len(repositories),
+                          code_count=len(code_results),
+                          commit_count=len(commits))
 
 @app.route('/repo/<repo_name>/edit', methods=['GET', 'POST'])
 @require_auth
@@ -753,6 +861,57 @@ def git_action(repo_name):
         
     return jsonify(res)
 
+@app.route('/<repo_name>/download/<ref>')
+@require_auth
+def download_zip(repo_name, ref):
+    """下载仓库的 ZIP 压缩包"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: 
+        abort(404)
+    
+    import tempfile
+    import zipfile
+    from io import BytesIO
+    
+    try:
+        # 使用 git archive 命令创建 ZIP
+        result = subprocess.run(
+            ['git', 'archive', '--format=zip', ref],
+            cwd=repo_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False
+        )
+        
+        if result.returncode != 0:
+            flash(f'无法创建压缩包: {result.stderr.decode("utf-8", errors="replace")}', 'error')
+            return redirect(url_for('view_repo', repo_name=clean_name))
+        
+        # 创建响应
+        zip_data = BytesIO(result.stdout)
+        
+        # 设置文件名
+        filename = f"{clean_name}-{ref}.zip"
+        
+        return send_file(
+            zip_data,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'下载失败: {str(e)}', 'error')
+        return redirect(url_for('view_repo', repo_name=clean_name))
+
+@app.before_request
+def log_request_info():
+    if request.path.endswith('git-receive-pack'):
+        # 打印请求信息帮助调试
+        print(f"\n[DEBUG] 收到推送请求: Content-Length={request.content_length}")
+        print(f"[DEBUG] 当前配置 MAX_CONTENT_LENGTH={app.config.get('MAX_CONTENT_LENGTH')}")
+
 if __name__ == '__main__':
     import socket
     
@@ -825,4 +984,5 @@ if __name__ == '__main__':
     print("按 Ctrl+C 停止服务器")
     print("=" * 70 + "\n")
     
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    # 关闭 debug 模式以提高大文件上传的稳定性，并启用多线程
+    app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)

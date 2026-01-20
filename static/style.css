@@ -10,8 +10,8 @@
     --color-border-muted: #21262d;
     --color-fg-default: #c9d1d9;
     --color-fg-muted: #8b949e;
-    --color-accent-fg: #58a6ff;
-    --color-accent-emphasis: #1f6feb;
+    --color-accent-fg: #ffffff;
+    --color-accent-emphasis: #ffffff;
     --color-success-fg: #3fb950;
     --color-danger-fg: #f85149;
     --color-header-bg: #161b22;
@@ -36,7 +36,7 @@ body {
 }
 
 a {
-    color: var(--color-accent-fg);
+    color: #ffffff;
     text-decoration: none;
 }
 
@@ -201,7 +201,7 @@ header {
 }
 
 .file-name a:hover {
-    color: var(--color-accent-fg);
+    color: #ffffff;
     text-decoration: underline;
 }
 
@@ -257,9 +257,9 @@ input[type="text"] {
 }
 
 input[type="text"]:focus {
-    border-color: var(--color-accent-fg);
+    border-color: #ffffff;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
 /* Diff */

@@ -15,7 +15,7 @@
                 <i class="fas fa-caret-down"></i>
             </button>
             <div id="branch-dropdown"
-                style="display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 6px; width: 300px; max-width: 90vw; max-height: 80vh; z-index: 110; box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
+                style="display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 6px; width: 300px; max-width: 90vw; max-height: 80vh; z-index: 110; box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden; flex-direction: column;">
                 <div
                     style="padding: 8px 16px; border-bottom: 1px solid var(--color-border-default); font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
                     选择分支或标签
@@ -59,7 +59,7 @@
 
         <div style="display: flex; align-items: center; font-weight: 600; font-size: 14px; gap: 8px;">
             <i class="fas fa-folder" style="color: var(--color-fg-muted);"></i>
-            <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref) }}" style="color: var(--color-accent-fg);">{{
+            <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref) }}" style="color: #ffffff;">{{
                 repo_name }}</a>
             {% if current_path %}
             {% set parts = current_path.split('/') %}
@@ -69,7 +69,7 @@
             {% set ns.path = ns.path + part + '/' %}
             <span style="color: var(--color-fg-muted);">/</span>
             <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=ns.path.rstrip('/')) }}"
-                style="color: var(--color-accent-fg);">{{ part }}</a>
+                style="color: #ffffff;">{{ part }}</a>
             {% endif %}
             {% endfor %}
             {% endif %}
@@ -91,16 +91,6 @@
                     </div>
 
                     <div style="padding: 16px;">
-                        <div
-                            style="display: flex; gap: 0; border-bottom: 1px solid var(--color-border-default); margin-bottom: 16px;">
-                            <div
-                                style="padding: 8px 12px; border-bottom: 2px solid var(--color-danger-fg); cursor: pointer; font-weight: 600;">
-                                HTTPS</div>
-                            <div style="padding: 8px 12px; cursor: pointer; color: var(--color-fg-muted);">SSH</div>
-                            <div style="padding: 8px 12px; cursor: pointer; color: var(--color-fg-muted);">GitHub CLI
-                            </div>
-                        </div>
-
                         <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                             <input type="text" id="clone-url" value="{{ request.host_url }}{{ repo_name }}.git" readonly
                                 style="flex: 1; font-family: monospace; font-size: 12px;">
@@ -108,19 +98,16 @@
                         </div>
 
                         <div style="font-size: 12px; color: var(--color-fg-muted); margin-bottom: 16px;">
-                            使用 Git 或 checkout with SVN 使用此 URL。
+                            使用 Git 克隆此仓库
                         </div>
 
                         <div
-                            style="border-top: 1px solid var(--color-border-default); padding-top: 8px; margin-top: 8px;">
-                            <div class="dropdown-item" onclick="gitAction('{{ repo_name }}', 'pull')"
-                                style="padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                                <i class="fas fa-download"></i> 从远程拉取更改
-                            </div>
-                            <div class="dropdown-item" onclick="gitAction('{{ repo_name }}', 'push')"
-                                style="padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                                <i class="fas fa-upload"></i> 推送到远程
-                            </div>
+                            style="border-top: 1px solid var(--color-border-default); padding-top: 16px; margin-top: 16px;">
+                            <a href="{{ url_for('download_zip', repo_name=repo_name, ref=ref) }}"
+                                class="btn btn-primary"
+                                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+                                <i class="fas fa-download"></i> 下载 ZIP
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -139,8 +126,8 @@
 <script>
     function toggleBranchDropdown() {
         const d = document.getElementById('branch-dropdown');
-        d.style.display = d.style.display === 'none' ? 'block' : 'none';
-        if (d.style.display === 'block') {
+        d.style.display = d.style.display === 'none' ? 'flex' : 'none';
+        if (d.style.display === 'flex') {
             document.getElementById('ref-filter').focus();
         }
     }
@@ -233,7 +220,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-fg-muted);">
                 <a href="{{ url_for('view_commit', repo_name=repo_name, commit_hash=latest_commit.hash) }}"
-                    style="font-family: monospace; color: var(--color-accent-fg);">
+                    style="font-family: monospace; color: #ffffff;">
                     {{ latest_commit.hash[:7] }}
                 </a>
                 <span>{{ latest_commit.time }}</span>
@@ -252,7 +239,7 @@
     <div>
         {% if current_path %}
         <div class="Box-row">
-            <div class="file-icon"><i class="fas fa-ellipsis-h" style="color: var(--color-accent-fg);"></i></div>
+            <div class="file-icon"><i class="fas fa-ellipsis-h" style="color: #ffffff;"></i></div>
             <div class="file-name">
                 {% set parent_path = current_path.split('/')[:-1]|join('/') %}
                 <a href="{{ url_for('view_tree', repo_name=repo_name, ref=ref, subpath=parent_path) }}"
@@ -266,7 +253,7 @@
         <div class="Box-row">
             <div class="file-icon">
                 {% if item.is_dir %}
-                <i class="fas fa-folder" style="color: #54aeff;"></i>
+                <i class="fas fa-folder" style="color: #ffffff;"></i>
                 {% else %}
                 <i class="far fa-file" style="color: var(--color-fg-muted);"></i>
                 {% endif %}
@@ -306,7 +293,69 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
     <script>
         const readmeText = {{ readme| tojson }};
+        const repoName = {{ repo_name| tojson }};
+        const ref = {{ ref| tojson }};
+        const currentPath = {{ current_path| tojson }};
+
+        // 渲染 Markdown
         document.getElementById('readme-content').innerHTML = marked.parse(readmeText);
+
+        // 处理相对路径的辅助函数
+        function resolveRelativePath(relativePath) {
+            // 如果是绝对路径或外部链接，直接返回
+            if (relativePath.startsWith('http://') ||
+                relativePath.startsWith('https://') ||
+                relativePath.startsWith('//') ||
+                relativePath.startsWith('/')) {
+                return relativePath;
+            }
+
+            // 处理以 ./ 或 ../ 开头的相对路径
+            let basePath = currentPath ? currentPath.split('/') : [];
+            let parts = relativePath.split('/');
+
+            for (let part of parts) {
+                if (part === '..') {
+                    basePath.pop();
+                } else if (part !== '.' && part !== '') {
+                    basePath.push(part);
+                }
+            }
+
+            return basePath.join('/');
+        }
+
+        // 修复所有图片的相对路径
+        const images = document.querySelectorAll('#readme-content img');
+        images.forEach(img => {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('//')) {
+                const resolvedPath = resolveRelativePath(src);
+                // 构建指向 Git 文件的 URL
+                img.src = `/${repoName}/blob/${ref}/${resolvedPath}?raw=1`;
+            }
+        });
+
+        // 修复所有链接的相对路径
+        const links = document.querySelectorAll('#readme-content a');
+        links.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('//') && !href.startsWith('#')) {
+                const resolvedPath = resolveRelativePath(href);
+
+                // 判断是文件还是目录
+                const ext = resolvedPath.split('.').pop().toLowerCase();
+                const isLikelyFile = ['md', 'txt', 'pdf', 'doc', 'docx', 'jpg', 'png', 'gif', 'svg', 'html', 'css', 'js', 'py', 'java', 'cpp', 'c', 'h'].includes(ext);
+
+                if (isLikelyFile) {
+                    // 如果像是文件，链接到文件查看页面
+                    link.href = `/${repoName}/blob/${ref}/${resolvedPath}`;
+                } else {
+                    // 如果像是目录，链接到目录浏览页面
+                    link.href = `/${repoName}/tree/${ref}/${resolvedPath}`;
+                }
+            }
+        });
     </script>
     {% else %}
     <div class="markdown-body" style="border: none;">

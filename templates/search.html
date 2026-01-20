@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block title %}搜索: {{ query }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <h2 style="margin: 0 0 8px 0; font-size: 24px;">搜索结果</h2>
+    <p style="color: var(--color-fg-muted); margin: 0;">
+        找到 <strong>{{ total_results }}</strong> 个结果，关键词：<strong>"{{ query }}"</strong>
+    </p>
+</div>
+
+<!-- 搜索过滤器 -->
+<div
+    style="margin-bottom: 16px; display: flex; gap: 8px; border-bottom: 1px solid var(--color-border-default); padding-bottom: 8px;">
+    <a href="{{ url_for('search', q=query) }}" class="{% if not filter_type %}selected{% endif %}"
+        style="padding: 8px 16px; border-radius: 6px; text-decoration: none; {% if not filter_type %}background: var(--color-canvas-subtle); font-weight: 600;{% endif %}">
+        全部 ({{ total_results }})
+    </a>
+    <a href="{{ url_for('search', q=query, type='repositories') }}"
+        class="{% if filter_type == 'repositories' %}selected{% endif %}"
+        style="padding: 8px 16px; border-radius: 6px; text-decoration: none; {% if filter_type == 'repositories' %}background: var(--color-canvas-subtle); font-weight: 600;{% endif %}">
+        项目 ({{ repo_count }})
+    </a>
+    <a href="{{ url_for('search', q=query, type='code') }}" class="{% if filter_type == 'code' %}selected{% endif %}"
+        style="padding: 8px 16px; border-radius: 6px; text-decoration: none; {% if filter_type == 'code' %}background: var(--color-canvas-subtle); font-weight: 600;{% endif %}">
+        代码 ({{ code_count }})
+    </a>
+    <a href="{{ url_for('search', q=query, type='commits') }}"
+        class="{% if filter_type == 'commits' %}selected{% endif %}"
+        style="padding: 8px 16px; border-radius: 6px; text-decoration: none; {% if filter_type == 'commits' %}background: var(--color-canvas-subtle); font-weight: 600;{% endif %}">
+        提交 ({{ commit_count }})
+    </a>
+</div>
+
+<!-- 仓库结果 -->
+{% if repositories and (not filter_type or filter_type == 'repositories') %}
+<div class="Box" style="margin-bottom: 24px;">
+    <div class="Box-header">
+        <h3 style="margin: 0; font-size: 14px;">
+            <i class="fas fa-book" style="margin-right: 8px;"></i>仓库
+        </h3>
+    </div>
+    {% for repo in repositories %}
+    <div class="Box-row" style="padding: 16px;">
+        <div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px;">
+                <a href="{{ url_for('view_repo', repo_name=repo.name) }}" style="font-weight: 600; color: #ffffff;">
+                    {{ repo.name }}
+                </a>
+            </h3>
+            {% if repo.description %}
+            <p style="margin: 0 0 8px 0; color: var(--color-fg-muted);">{{ repo.description }}</p>
+            {% endif %}
+            <div style="font-size: 12px; color: var(--color-fg-muted);">
+                {% if repo.language %}
+                <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px; color: #ffffff;"></i>
+                {{ repo.language }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 代码结果 -->
+{% if code_results and (not filter_type or filter_type == 'code') %}
+<div class="Box" style="margin-bottom: 24px;">
+    <div class="Box-header">
+        <h3 style="margin: 0; font-size: 14px;">
+            <i class="fas fa-code" style="margin-right: 8px;"></i>代码
+        </h3>
+    </div>
+    {% for result in code_results %}
+    <div class="Box-row" style="padding: 16px;">
+        <div style="margin-bottom: 8px;">
+            <a href="{{ url_for('view_repo', repo_name=result.repo) }}" style="font-weight: 600; color: #ffffff;">{{
+                result.repo }}</a>
+            <span style="color: var(--color-fg-muted);"> / </span>
+            <a href="{{ url_for('view_file', repo_name=result.repo, ref=result.ref, filepath=result.file) }}"
+                style="color: #ffffff;">{{ result.file }}</a>
+        </div>
+        <div style="background: var(--color-canvas-subtle); border-radius: 6px; padding: 12px; overflow-x: auto;">
+            <pre
+                style="margin: 0; font-family: monospace; font-size: 12px; line-height: 1.5;">{{ result.snippet }}</pre>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px; color: var(--color-fg-muted);">
+            第 {{ result.line_number }} 行
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 提交结果 -->
+{% if commits and (not filter_type or filter_type == 'commits') %}
+<div class="Box" style="margin-bottom: 24px;">
+    <div class="Box-header">
+        <h3 style="margin: 0; font-size: 14px;">
+            <i class="fas fa-code-branch" style="margin-right: 8px;"></i>提交
+        </h3>
+    </div>
+    {% for commit in commits %}
+    <div class="Box-row" style="padding: 16px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="flex: 1;">
+                <div style="margin-bottom: 8px;">
+                    <a href="{{ url_for('view_commit', repo_name=commit.repo, commit_hash=commit.hash) }}"
+                        style="font-weight: 600; color: #ffffff;">
+                        {{ commit.message }}
+                    </a>
+                </div>
+                <div style="font-size: 12px; color: var(--color-fg-muted);">
+                    <a href="{{ url_for('view_repo', repo_name=commit.repo) }}" style="color: #ffffff;">{{ commit.repo
+                        }}</a>
+                    <span style="margin: 0 8px;">•</span>
+                    <span>{{ commit.author }}</span>
+                    <span style="margin: 0 8px;">•</span>
+                    <a href="{{ url_for('view_commit', repo_name=commit.repo, commit_hash=commit.hash) }}"
+                        style="font-family: monospace; color: #ffffff;">{{ commit.hash[:7] }}</a>
+                    <span style="margin: 0 8px;">•</span>
+                    <span>{{ commit.date }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if total_results == 0 %}
+<div style="text-align: center; padding: 80px 20px; color: var(--color-fg-muted);">
+    <i class="fas fa-search" style="font-size: 64px; opacity: 0.3; margin-bottom: 16px; display: block;"></i>
+    <h3 style="margin: 0 0 8px 0;">未找到结果</h3>
+    <p style="margin: 0;">尝试使用不同的关键词搜索</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -22,7 +22,7 @@
                 <i class="fas fa-code-branch"
                     style="color: {% if branch.is_current %}var(--color-success-fg){% else %}var(--color-fg-muted){% endif %}; font-size: 14px;"></i>
                 <a href="{{ url_for('view_tree', repo_name=repo_name, ref=branch.name) }}"
-                    style="font-family: monospace; font-size: 14px; font-weight: 600; color: {% if branch.is_current %}var(--color-success-fg){% else %}var(--color-accent-fg){% endif %}; text-decoration: none;">
+                    style="font-family: monospace; font-size: 14px; font-weight: 600; color: {% if branch.is_current %}var(--color-success-fg){% else %}#ffffff{% endif %}; text-decoration: none;">
                     {{ branch.name }}
                 </a>
                 {% if branch.is_current %}
