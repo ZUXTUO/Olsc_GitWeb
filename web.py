@@ -62,13 +62,20 @@ def require_auth(f):
 
 def get_repo_path(repo_name):
     """安全地解析仓库路径，防止目录遍历。"""
+    print(f"[DEBUG] get_repo_path called with: '{repo_name}'")
+    
     if not repo_name or '..' in repo_name or '/' in repo_name or '\\' in repo_name:
+        print(f"[DEBUG] repo_name failed security check")
         return None
     
     # 如果存在 .git 后缀，则在获取文件夹路径时将其剥离
     real_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    print(f"[DEBUG] real_name after stripping .git: '{real_name}'")
     
     path = os.path.join(DATA_DIR, real_name)
+    print(f"[DEBUG] checking path: '{path}'")
+    print(f"[DEBUG] path exists: {os.path.exists(path)}, is_dir: {os.path.isdir(path) if os.path.exists(path) else 'N/A'}")
+    
     if os.path.exists(path) and os.path.isdir(path):
         return path
     return None
@@ -102,8 +109,11 @@ def run_git_command(repo_path, command_args):
         return { 'success': False, 'error': str(e) }
 
 def git_http_backend(repo_path, service):
-    """桥接到 git-http-backend cgi。"""
+    """直接使用 Git 命令实现 Smart HTTP 协议，避免 git http-backend 的路径问题。"""
+    print(f"[DEBUG] git_http_backend called with repo_path: '{repo_path}', service: '{service}'")
+    
     if not repo_path:
+        print(f"[DEBUG] repo_path is None, returning 404")
         return Response("未找到仓库", status=404)
     
     # 对于非裸仓库，我们需要指向 .git 目录
@@ -111,72 +121,116 @@ def git_http_backend(repo_path, service):
     if not os.path.exists(git_dir):
         git_dir = repo_path  # 裸仓库
     
-    env = os.environ.copy()
-    env['GIT_DIR'] = git_dir
-    env['GIT_HTTP_EXPORT_ALL'] = '1'
+    print(f"[DEBUG] git_dir: '{git_dir}'")
+    print(f"[DEBUG] git_dir exists: {os.path.exists(git_dir)}")
+    print(f"[DEBUG] service: '{service}'")
+    print(f"[DEBUG] query_string: '{request.query_string.decode('utf-8')}'")
     
-    # 提取服务路径（例如：/info/refs, /git-receive-pack）
-    # service 类似于 /TEST/.git/info/refs
-    # 我们需要提取仓库名称之后的所有内容
-    parts = service.split('/.git/')
-    if len(parts) == 2:
-        path_info = '/' + parts[1]  # 例如：/info/refs
-        # PATH_TRANSLATED 应该是请求资源的完整文件系统路径
-        env['PATH_TRANSLATED'] = os.path.join(git_dir, parts[1])
-        env['PATH_INFO'] = path_info
-    else:
-        # 裸仓库的回退处理
-        repo_name = os.path.basename(repo_path)
-        path_info = service.replace(f'/{repo_name}', '')
-        env['PATH_INFO'] = path_info
-        env['PATH_TRANSLATED'] = os.path.join(git_dir, path_info.lstrip('/'))
-    
-    env['REMOTE_USER'] = 'anonymous'
-    env['REQUEST_METHOD'] = request.method
-    env['CONTENT_TYPE'] = request.content_type or ''
-    env['QUERY_STRING'] = request.query_string.decode('utf-8')
-    
-    proc = subprocess.Popen(
-        ['git', 'http-backend'],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env
-    )
-    
-    input_data = request.data
-    stdout, stderr = proc.communicate(input=input_data)
-    
-    if proc.returncode != 0:
-        return Response(stderr, status=500, mimetype='text/plain')
+    # 检查是否是 info/refs 请求
+    if service == '/info/refs':
+        service_name = request.args.get('service', '')
+        print(f"[DEBUG] info/refs request, service_name: '{service_name}'")
         
-    # 有效的 CGI 响应包含 头部 + 主体
-    # 我们必须将两者分开
-    parts = stdout.split(b'\r\n\r\n', 1)
-    if len(parts) < 2:
-        parts = stdout.split(b'\n\n', 1)
+        if service_name == 'git-upload-pack':
+            # 调用 git upload-pack --advertise-refs
+            try:
+                result = subprocess.run(
+                    ['git', 'upload-pack', '--stateless-rpc', '--advertise-refs', git_dir],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False
+                )
+                
+                if result.returncode != 0:
+                    print(f"[DEBUG] git upload-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+                    return Response(result.stderr, status=500, mimetype='text/plain')
+                
+                # 构建响应
+                response_data = f'001e# service=git-upload-pack\n0000'.encode() + result.stdout
+                return Response(
+                    response_data,
+                    status=200,
+                    mimetype='application/x-git-upload-pack-advertisement'
+                )
+            except Exception as e:
+                print(f"[DEBUG] Exception: {str(e)}")
+                return Response(str(e), status=500, mimetype='text/plain')
+                
+        elif service_name == 'git-receive-pack':
+            # 调用 git receive-pack --advertise-refs
+            try:
+                result = subprocess.run(
+                    ['git', 'receive-pack', '--stateless-rpc', '--advertise-refs', git_dir],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False
+                )
+                
+                if result.returncode != 0:
+                    print(f"[DEBUG] git receive-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+                    return Response(result.stderr, status=500, mimetype='text/plain')
+                
+                # 构建响应
+                response_data = f'001f# service=git-receive-pack\n0000'.encode() + result.stdout
+                return Response(
+                    response_data,
+                    status=200,
+                    mimetype='application/x-git-receive-pack-advertisement'
+                )
+            except Exception as e:
+                print(f"[DEBUG] Exception: {str(e)}")
+                return Response(str(e), status=500, mimetype='text/plain')
     
-    if len(parts) < 2:
-        return Response(stdout, status=200) # 回退处理
-        
-    headers_raw, body = parts
-    headers = {}
-    status_code = 200
-
-    for line in headers_raw.splitlines():
-        if b':' in line:
-            key, val = line.split(b':', 1)
-            key_str = key.decode('utf-8')
-            val_str = val.strip().decode('utf-8')
-            headers[key_str] = val_str
+    elif service == '/git-upload-pack':
+        # 处理 upload-pack 请求
+        try:
+            result = subprocess.run(
+                ['git', 'upload-pack', '--stateless-rpc', git_dir],
+                input=request.data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False
+            )
             
-            if key_str.lower() == 'status':
-                try:
-                    status_code = int(val_str.split()[0])
-                except ValueError:
-                    pass
+            if result.returncode != 0:
+                print(f"[DEBUG] git upload-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+                return Response(result.stderr, status=500, mimetype='text/plain')
             
-    return Response(body, status=status_code, headers=headers)
+            return Response(
+                result.stdout,
+                status=200,
+                mimetype='application/x-git-upload-pack-result'
+            )
+        except Exception as e:
+            print(f"[DEBUG] Exception: {str(e)}")
+            return Response(str(e), status=500, mimetype='text/plain')
+    
+    elif service == '/git-receive-pack':
+        # 处理 receive-pack 请求
+        try:
+            result = subprocess.run(
+                ['git', 'receive-pack', '--stateless-rpc', git_dir],
+                input=request.data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False
+            )
+            
+            if result.returncode != 0:
+                print(f"[DEBUG] git receive-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+                return Response(result.stderr, status=500, mimetype='text/plain')
+            
+            return Response(
+                result.stdout,
+                status=200,
+                mimetype='application/x-git-receive-pack-result'
+            )
+        except Exception as e:
+            print(f"[DEBUG] Exception: {str(e)}")
+            return Response(str(e), status=500, mimetype='text/plain')
+    
+    print(f"[DEBUG] Unknown service, returning 404")
+    return Response("Unknown service", status=404)
 
 @app.template_filter('basename')
 def basename_filter(s):
@@ -382,24 +436,41 @@ def create_repo():
     run_git_command(repo_path, ['config', 'http.receivepack', 'true'])
     run_git_command(repo_path, ['config', 'receive.denyCurrentBranch', 'updateInstead'])
     
+    # 创建初始提交，使仓库可以立即被克隆
+    readme_path = os.path.join(repo_path, 'README.md')
+    with open(readme_path, 'w', encoding='utf-8') as f:
+        f.write(f'# {name}\n\n这是一个新创建的 Git 仓库。\n')
+    
+    run_git_command(repo_path, ['add', 'README.md'])
+    run_git_command(repo_path, ['commit', '-m', 'Initial commit'])
+    
     return redirect(url_for('view_repo', repo_name=name))
 
 # --- Git Smart HTTP 路由 ---
 @app.route('/<repo_name>.git/info/refs')
 def git_info_refs(repo_name):
-    # 对于非裸仓库，将仓库路径映射到 .git 目录
-    path = '/' + repo_name + '/.git/info/refs'
-    return git_http_backend(get_repo_path(repo_name), path)
+    print(f"[DEBUG] git_info_refs called with repo_name: {repo_name}")
+    repo_path = get_repo_path(repo_name)
+    print(f"[DEBUG] repo_path resolved to: {repo_path}")
+    if not repo_path:
+        print(f"[DEBUG] repo_path is None, returning 404")
+        abort(404)
+    # 直接传递相对路径，git_http_backend 会处理
+    return git_http_backend(repo_path, '/info/refs')
 
 @app.route('/<repo_name>.git/git-upload-pack', methods=['POST'])
 def git_upload_pack(repo_name):
-    path = '/' + repo_name + '/.git/git-upload-pack'
-    return git_http_backend(get_repo_path(repo_name), path)
+    repo_path = get_repo_path(repo_name)
+    if not repo_path:
+        abort(404)
+    return git_http_backend(repo_path, '/git-upload-pack')
 
 @app.route('/<repo_name>.git/git-receive-pack', methods=['POST'])
 def git_receive_pack(repo_name):
-    path = '/' + repo_name + '/.git/git-receive-pack'
-    return git_http_backend(get_repo_path(repo_name), path)
+    repo_path = get_repo_path(repo_name)
+    if not repo_path:
+        abort(404)
+    return git_http_backend(repo_path, '/git-receive-pack')
 
 # --- 静态 Git 文件 (用于 dumb HTTP 协议) ---
 @app.route('/<repo_name>.git/HEAD')
