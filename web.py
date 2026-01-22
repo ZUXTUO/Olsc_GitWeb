@@ -1,4 +1,5 @@
 import os
+import stat
 import subprocess
 import json
 import shutil
@@ -22,7 +23,7 @@ app.secret_key = 'git-manager-secret-key-very-secure-random-string-2026' # 闪�
 # 设置最大请求体大小为 None (禁用限制，交由服务器内存处理)
 app.config['MAX_CONTENT_LENGTH'] = None
 
-print(f"配置检查: MAX_CONTENT_LENGTH = {app.config.get('MAX_CONTENT_LENGTH')}")
+
 
 # 配置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -62,19 +63,17 @@ def require_auth(f):
 
 def get_repo_path(repo_name):
     """安全地解析仓库路径，防止目录遍历。"""
-    print(f"[DEBUG] get_repo_path called with: '{repo_name}'")
+
     
     if not repo_name or '..' in repo_name or '/' in repo_name or '\\' in repo_name:
-        print(f"[DEBUG] repo_name failed security check")
         return None
     
     # 如果存在 .git 后缀，则在获取文件夹路径时将其剥离
     real_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
-    print(f"[DEBUG] real_name after stripping .git: '{real_name}'")
+
     
     path = os.path.join(DATA_DIR, real_name)
-    print(f"[DEBUG] checking path: '{path}'")
-    print(f"[DEBUG] path exists: {os.path.exists(path)}, is_dir: {os.path.isdir(path) if os.path.exists(path) else 'N/A'}")
+
     
     if os.path.exists(path) and os.path.isdir(path):
         return path
@@ -110,10 +109,9 @@ def run_git_command(repo_path, command_args):
 
 def git_http_backend(repo_path, service):
     """直接使用 Git 命令实现 Smart HTTP 协议，避免 git http-backend 的路径问题。"""
-    print(f"[DEBUG] git_http_backend called with repo_path: '{repo_path}', service: '{service}'")
+
     
     if not repo_path:
-        print(f"[DEBUG] repo_path is None, returning 404")
         return Response("未找到仓库", status=404)
     
     # 对于非裸仓库，我们需要指向 .git 目录
@@ -121,15 +119,12 @@ def git_http_backend(repo_path, service):
     if not os.path.exists(git_dir):
         git_dir = repo_path  # 裸仓库
     
-    print(f"[DEBUG] git_dir: '{git_dir}'")
-    print(f"[DEBUG] git_dir exists: {os.path.exists(git_dir)}")
-    print(f"[DEBUG] service: '{service}'")
-    print(f"[DEBUG] query_string: '{request.query_string.decode('utf-8')}'")
+
     
     # 检查是否是 info/refs 请求
     if service == '/info/refs':
         service_name = request.args.get('service', '')
-        print(f"[DEBUG] info/refs request, service_name: '{service_name}'")
+
         
         if service_name == 'git-upload-pack':
             # 调用 git upload-pack --advertise-refs
@@ -142,7 +137,7 @@ def git_http_backend(repo_path, service):
                 )
                 
                 if result.returncode != 0:
-                    print(f"[DEBUG] git upload-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+
                     return Response(result.stderr, status=500, mimetype='text/plain')
                 
                 # 构建响应
@@ -153,7 +148,7 @@ def git_http_backend(repo_path, service):
                     mimetype='application/x-git-upload-pack-advertisement'
                 )
             except Exception as e:
-                print(f"[DEBUG] Exception: {str(e)}")
+
                 return Response(str(e), status=500, mimetype='text/plain')
                 
         elif service_name == 'git-receive-pack':
@@ -167,7 +162,7 @@ def git_http_backend(repo_path, service):
                 )
                 
                 if result.returncode != 0:
-                    print(f"[DEBUG] git receive-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+
                     return Response(result.stderr, status=500, mimetype='text/plain')
                 
                 # 构建响应
@@ -178,7 +173,7 @@ def git_http_backend(repo_path, service):
                     mimetype='application/x-git-receive-pack-advertisement'
                 )
             except Exception as e:
-                print(f"[DEBUG] Exception: {str(e)}")
+
                 return Response(str(e), status=500, mimetype='text/plain')
     
     elif service == '/git-upload-pack':
@@ -193,7 +188,7 @@ def git_http_backend(repo_path, service):
             )
             
             if result.returncode != 0:
-                print(f"[DEBUG] git upload-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+
                 return Response(result.stderr, status=500, mimetype='text/plain')
             
             return Response(
@@ -202,7 +197,7 @@ def git_http_backend(repo_path, service):
                 mimetype='application/x-git-upload-pack-result'
             )
         except Exception as e:
-            print(f"[DEBUG] Exception: {str(e)}")
+
             return Response(str(e), status=500, mimetype='text/plain')
     
     elif service == '/git-receive-pack':
@@ -217,7 +212,7 @@ def git_http_backend(repo_path, service):
             )
             
             if result.returncode != 0:
-                print(f"[DEBUG] git receive-pack failed: {result.stderr.decode('utf-8', errors='replace')}")
+
                 return Response(result.stderr, status=500, mimetype='text/plain')
             
             return Response(
@@ -226,10 +221,10 @@ def git_http_backend(repo_path, service):
                 mimetype='application/x-git-receive-pack-result'
             )
         except Exception as e:
-            print(f"[DEBUG] Exception: {str(e)}")
+
             return Response(str(e), status=500, mimetype='text/plain')
     
-    print(f"[DEBUG] Unknown service, returning 404")
+
     return Response("Unknown service", status=404)
 
 @app.template_filter('basename')
@@ -276,11 +271,12 @@ def index():
     
     if os.path.exists(DATA_DIR):
         for d in os.listdir(DATA_DIR):
-            if d.startswith('.'): continue
+            if d.startswith('.') or d.endswith('_temp_init'): continue
             path = os.path.join(DATA_DIR, d)
             if os.path.isdir(path):
-                # 检查是否为 git 仓库
-                is_git = os.path.exists(os.path.join(path, '.git'))
+                # 检查是否为 git 仓库 (支持普通仓库和裸仓库)
+                is_git = os.path.exists(os.path.join(path, '.git')) or \
+                         (os.path.exists(os.path.join(path, 'HEAD')) and os.path.exists(os.path.join(path, 'config')))
                 info = repo_info_map.get(d, {})
                 repos.append({ 
                     'name': d, 
@@ -308,7 +304,7 @@ def search():
     
     if os.path.exists(DATA_DIR):
         for d in os.listdir(DATA_DIR):
-            if d.startswith('.'): continue
+            if d.startswith('.') or d.endswith('_temp_init'): continue
             path = os.path.join(DATA_DIR, d)
             if os.path.isdir(path):
                 info = repo_info_map.get(d, {})
@@ -329,7 +325,7 @@ def search():
     code_results = []
     if os.path.exists(DATA_DIR):
         for repo_name in os.listdir(DATA_DIR):
-            if repo_name.startswith('.'): continue
+            if repo_name.startswith('.') or repo_name.endswith('_temp_init'): continue
             repo_path = os.path.join(DATA_DIR, repo_name)
             if not os.path.isdir(repo_path): continue
             
@@ -353,7 +349,7 @@ def search():
     commits = []
     if os.path.exists(DATA_DIR):
         for repo_name in os.listdir(DATA_DIR):
-            if repo_name.startswith('.'): continue
+            if repo_name.startswith('.') or repo_name.endswith('_temp_init'): continue
             repo_path = os.path.join(DATA_DIR, repo_name)
             if not os.path.isdir(repo_path): continue
             
@@ -427,33 +423,64 @@ def create_repo():
     if name.endswith('.git'): name = name[:-4]
     
     repo_path = os.path.join(DATA_DIR, name)
-    if os.path.exists(repo_path):
-        return jsonify({ 'error': '仓库已存在' }), 400
+    # 使用临时目录初始化仓库，然后克隆为裸仓库
+    # 这样可以避免 "Current branch" 问题，并支持更原生的服务器行为
+    temp_path = os.path.join(DATA_DIR, f"{name}_temp_init")
+    if os.path.exists(temp_path):
+        shutil.rmtree(temp_path)
+    os.makedirs(temp_path)
+    
+    try:
+        # 1. 在临时目录初始化
+        run_git_command(temp_path, ['init'])
         
-    os.makedirs(repo_path)
-    run_git_command(repo_path, ['init'])
-    # 允许推送
-    run_git_command(repo_path, ['config', 'http.receivepack', 'true'])
-    run_git_command(repo_path, ['config', 'receive.denyCurrentBranch', 'updateInstead'])
-    
-    # 创建初始提交，使仓库可以立即被克隆
-    readme_path = os.path.join(repo_path, 'README.md')
-    with open(readme_path, 'w', encoding='utf-8') as f:
-        f.write(f'# {name}\n\n这是一个新创建的 Git 仓库。\n')
-    
-    run_git_command(repo_path, ['add', 'README.md'])
-    run_git_command(repo_path, ['commit', '-m', 'Initial commit'])
+        # 2. 创建初始 README
+        readme_path = os.path.join(temp_path, 'README.md')
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(f'# {name}\n\n这是一个新创建的 Git 仓库。\n')
+        
+        run_git_command(temp_path, ['add', 'README.md'])
+        run_git_command(temp_path, ['commit', '-m', 'Initial commit'])
+        
+        # 3. 克隆为裸仓库到最终位置
+        # 注意: repo_path 必须不存在或为空，所以我们这里不预先创建 repo_path，或者由 clone 创建
+        if os.path.exists(repo_path):
+             shutil.rmtree(repo_path)
+             
+        run_git_command(temp_path, ['clone', '--bare', '.', repo_path])
+        
+        # 4. 配置裸仓库
+        # 允许推送
+        run_git_command(repo_path, ['config', 'http.receivepack', 'true'])
+        # 允许强制推送
+        run_git_command(repo_path, ['config', 'receive.denyNonFastForwards', 'false'])
+        # 裸仓库不需要 receive.denyCurrentBranch 配置，因为它没有工作区
+        
+    except Exception as e:
+        print(f"创建仓库失败: {e}")
+        return jsonify({ 'error': f'创建失败: {str(e)}' }), 500
+    finally:
+        # 清理临时目录
+        if os.path.exists(temp_path):
+            # 定义删除只读文件的回调函数
+            def remove_readonly(func, path, excinfo):
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+                
+            try:
+                shutil.rmtree(temp_path, onerror=remove_readonly)
+            except Exception as e:
+                print(f"清理临时目录失败: {e}")
     
     return redirect(url_for('view_repo', repo_name=name))
 
 # --- Git Smart HTTP 路由 ---
 @app.route('/<repo_name>.git/info/refs')
 def git_info_refs(repo_name):
-    print(f"[DEBUG] git_info_refs called with repo_name: {repo_name}")
+
     repo_path = get_repo_path(repo_name)
-    print(f"[DEBUG] repo_path resolved to: {repo_path}")
+
     if not repo_path:
-        print(f"[DEBUG] repo_path is None, returning 404")
         abort(404)
     # 直接传递相对路径，git_http_backend 会处理
     return git_http_backend(repo_path, '/info/refs')
@@ -837,8 +864,8 @@ def view_branches(repo_name):
     repo_path = get_repo_path(clean_name)
     if not repo_path: abort(404)
     
-    # 获取所有分支及其提交信息
-    output = run_git_command(repo_path, ['branch', '-a', '-v', '--format=%(refname:short)|%(committerdate:relative)|%(subject)'])
+    # 获取所有分支及其提交信息 (仅限本地分支)
+    output = run_git_command(repo_path, ['branch', '-v', '--format=%(refname:short)|%(committerdate:relative)|%(subject)'])
     branches_data = []
     
     # 获取当前分支
@@ -851,16 +878,94 @@ def view_branches(repo_name):
                 parts = line.split('|', 2)
                 if len(parts) >= 3:
                     branch_name = parts[0].strip()
-                    # 暂时跳过远程分支
-                    if not branch_name.startswith('origin/') and not branch_name.startswith('remotes/'):
-                        branches_data.append({
-                            'name': branch_name,
-                            'date': parts[1].strip(),
-                            'message': parts[2].strip(),
-                            'is_current': branch_name == current_branch
-                        })
+                    # 不再跳过 startswith('origin/') 的分支，因为它们可能是本地分支
+                    branches_data.append({
+                        'name': branch_name,
+                        'date': parts[1].strip(),
+                        'message': parts[2].strip(),
+                        'is_current': branch_name == current_branch
+                    })
     
     return render_template('branches.html', repo_name=clean_name, branches=branches_data, current_branch=current_branch)
+
+@app.route('/<repo_name>/branches/set', methods=['POST'])
+@require_auth
+def set_default_branch(repo_name):
+    """设置默认分支 (HEAD)"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    branch = request.form.get('branch')
+    if not branch:
+        flash('未指定分支', 'error')
+        return redirect(url_for('view_branches', repo_name=clean_name))
+    
+    # 使用 symbolic-ref 修改 HEAD 指向
+    res = run_git_command(repo_path, ['symbolic-ref', 'HEAD', f'refs/heads/{branch}'])
+    
+    if res['success']:
+        flash(f'默认分支已设置为 {branch}', 'success')
+    else:
+        flash(f'设置失败: {res.get("stderr", "未知错误")}', 'error')
+        
+    return redirect(url_for('view_branches', repo_name=clean_name))
+
+@app.route('/<repo_name>/branches/create', methods=['POST'])
+@require_auth
+def create_branch(repo_name):
+    """创建新分支"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    new_branch = request.form.get('new_branch', '').strip()
+    if not new_branch:
+        flash('分支名称不能为空', 'error')
+        return redirect(url_for('view_branches', repo_name=clean_name))
+        
+    # 简单的名称验证
+    if not all(c.isalnum() or c in '-_./' for c in new_branch):
+         flash('分支名称包含非法字符', 'error')
+         return redirect(url_for('view_branches', repo_name=clean_name))
+
+    res = run_git_command(repo_path, ['branch', new_branch, 'HEAD'])
+    
+    if res['success']:
+        flash(f'分支 {new_branch} 创建成功', 'success')
+    else:
+        flash(f'创建失败: {res.get("stderr", "未知错误")}', 'error')
+        
+    return redirect(url_for('view_branches', repo_name=clean_name))
+
+@app.route('/<repo_name>/branches/delete', methods=['POST'])
+@require_auth
+def delete_branch(repo_name):
+    """删除分支"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    branch = request.form.get('branch')
+    if not branch:
+        flash('未指定分支', 'error')
+        return redirect(url_for('view_branches', repo_name=clean_name))
+    
+    # 检查是否为当前 HEAD
+    current = run_git_command(repo_path, ['symbolic-ref', '--short', 'HEAD'])
+    if current['success'] and current['stdout'].strip() == branch:
+        flash('无法删除当前默认分支，请先切换默认分支。', 'error')
+        return redirect(url_for('view_branches', repo_name=clean_name))
+
+    # 强制删除分支 (-D)
+    res = run_git_command(repo_path, ['branch', '-D', branch])
+    
+    if res['success']:
+        flash(f'分支 {branch} 已删除', 'success')
+    else:
+        flash(f'删除失败: {res.get("stderr", "未知错误")}', 'error')
+        
+    return redirect(url_for('view_branches', repo_name=clean_name))
 
 @app.route('/<repo_name>/compare', methods=['GET', 'POST'])
 def compare_nodes(repo_name):
@@ -976,12 +1081,7 @@ def download_zip(repo_name, ref):
         flash(f'下载失败: {str(e)}', 'error')
         return redirect(url_for('view_repo', repo_name=clean_name))
 
-@app.before_request
-def log_request_info():
-    if request.path.endswith('git-receive-pack'):
-        # 打印请求信息帮助调试
-        print(f"\n[DEBUG] 收到推送请求: Content-Length={request.content_length}")
-        print(f"[DEBUG] 当前配置 MAX_CONTENT_LENGTH={app.config.get('MAX_CONTENT_LENGTH')}")
+
 
 if __name__ == '__main__':
     import socket
@@ -1055,5 +1155,4 @@ if __name__ == '__main__':
     print("按 Ctrl+C 停止服务器")
     print("=" * 70 + "\n")
     
-    # 关闭 debug 模式以提高大文件上传的稳定性，并启用多线程
-    app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=PORT, threaded=True)

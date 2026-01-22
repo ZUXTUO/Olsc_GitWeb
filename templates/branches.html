@@ -5,14 +5,42 @@
 {% block content %}
 <div class="Box">
     <div class="Box-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0; font-size: 14px;">
-            <i class="fas fa-code-branch" style="margin-right: 8px;"></i>分支
+        <h3 style="margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-code-branch"></i>分支
+            {% if current_branch %}
+            <span style="font-size: 12px; font-weight: normal; color: var(--color-fg-muted);">
+                (当前: <span style="font-weight: 600; color: var(--color-fg-default);">{{ current_branch }}</span>)
+            </span>
+            {% endif %}
         </h3>
-        {% if current_branch %}
-        <span style="font-size: 12px; color: var(--color-fg-muted);">
-            当前分支: <span style="font-weight: 600; color: var(--color-fg-default);">{{ current_branch }}</span>
-        </span>
-        {% endif %}
+
+        <details class="details-reset details-overlay position-relative">
+            <summary class="btn btn-primary btn-sm" aria-haspopup="true">
+                新建分支
+            </summary>
+            <div class="SelectMenu right-0 branch-create-menu">
+                <div class="SelectMenu-modal">
+                    <header class="SelectMenu-header">
+                        <span class="SelectMenu-title">创建新分支</span>
+                        <button class="SelectMenu-closeButton" type="button" data-close-dialog>
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </header>
+                    <form action="{{ url_for('create_branch', repo_name=repo_name) }}" method="post" class="p-3">
+                        <div class="form-group mb-3">
+                            <label class="d-block mb-2 text-bold">分支名称</label>
+                            <input type="text" name="new_branch" class="form-control input-block"
+                                placeholder="例如: feature/new-page" required pattern="[a-zA-Z0-9_\-./]+"
+                                title="仅允许字母、数字、下划线、连字符和点">
+                            <p class="note mt-1 text-small color-fg-muted">
+                                将基于当前 HEAD 创建。
+                            </p>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">创建分支</button>
+                    </form>
+                </div>
+            </div>
+        </details>
     </div>
 
     {% for branch in branches %}
@@ -36,8 +64,23 @@
                 {{ branch.message }}
             </div>
         </div>
-        <div style="text-align: right; font-size: 12px; color: var(--color-fg-muted);">
-            {{ branch.date }}
+        <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 12px; color: var(--color-fg-muted);">{{ branch.date }}</span>
+            {% if not branch.is_current %}
+            <form action="{{ url_for('set_default_branch', repo_name=repo_name) }}" method="post" style="margin: 0;">
+                <input type="hidden" name="branch" value="{{ branch.name }}">
+                <button type="submit" class="btn btn-sm" style="font-size: 12px;">
+                    设为默认
+                </button>
+            </form>
+            <form action="{{ url_for('delete_branch', repo_name=repo_name) }}" method="post" style="margin: 0;"
+                onsubmit="return confirm('确定要删除分支 {{ branch.name }} 吗？此操作无法撤销。');">
+                <input type="hidden" name="branch" value="{{ branch.name }}">
+                <button type="submit" class="btn btn-danger btn-sm" style="font-size: 12px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+            {% endif %}
         </div>
     </div>
     {% else %}
