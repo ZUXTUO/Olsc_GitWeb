@@ -7,6 +7,8 @@ import mimetypes
 import hashlib
 from flask import Flask, request, jsonify, render_template, redirect, url_for, abort, send_file, flash, get_flashed_messages, Response, session
 from functools import wraps
+from werkzeug.utils import secure_filename
+import datetime
 
 # 尝试导入 markdown，如果不可用则回退到简单文本
 try:
@@ -234,6 +236,13 @@ def basename_filter(s):
 @app.template_filter('dirname')
 def dirname_filter(s):
     return os.path.dirname(s)
+
+@app.template_filter('markdown')
+def markdown_filter(s):
+    if not s: return ""
+    if markdown:
+        return markdown.markdown(s, extensions=['fenced_code', 'tables', 'nl2br'])
+    return s
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -857,6 +866,28 @@ def view_tags(repo_name):
     
     return render_template('tags.html', repo_name=clean_name, tags=tags_data)
 
+@app.route('/<repo_name>/tags/delete', methods=['POST'])
+@require_auth
+def delete_tag(repo_name):
+    """删除标签"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    tag_name = request.form.get('tag_name')
+    if not tag_name:
+        flash('未指定标签', 'error')
+        return redirect(url_for('view_tags', repo_name=clean_name))
+        
+    res = run_git_command(repo_path, ['tag', '-d', tag_name])
+    
+    if res['success']:
+        flash(f'标签 {tag_name} 已删除', 'success')
+    else:
+        flash(f'删除失败: {res.get("stderr", "未知错误")}', 'error')
+        
+    return redirect(url_for('view_tags', repo_name=clean_name))
+
 @app.route('/<repo_name>/branches')
 def view_branches(repo_name):
     """查看分支。"""
@@ -1082,6 +1113,124 @@ def download_zip(repo_name, ref):
         return redirect(url_for('view_repo', repo_name=clean_name))
 
 
+
+
+@app.route('/<repo_name>/releases')
+def view_releases(repo_name):
+    """查看发布版本"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    releases = db.get_repo_releases(clean_name)
+    return render_template('releases.html', repo_name=clean_name, releases=releases)
+
+@app.route('/<repo_name>/releases/new', methods=['GET', 'POST'])
+@require_auth
+def new_release(repo_name):
+    """创建新发布版本"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    repo_path = get_repo_path(clean_name)
+    if not repo_path: abort(404)
+    
+    # 获取标签列表供选择
+    tags_res = run_git_command(repo_path, ['tag', '-l'])
+    tags = tags_res['stdout'].splitlines() if tags_res['success'] else []
+    
+    if request.method == 'POST':
+        tag_name = request.form.get('tag_name')
+        target_commitish = request.form.get('target_commitish', 'master') # 默认主分支
+        name = request.form.get('name')
+        body = request.form.get('body')
+        is_prerelease = 1 if request.form.get('is_prerelease') else 0
+        
+        if not tag_name:
+            flash('标签名不能为空', 'error')
+            return redirect(url_for('new_release', repo_name=clean_name))
+            
+        # 检查标签是否已存在, 如果不存在则创建
+        if tag_name not in tags:
+            # 创建轻量级标签 (或者附注标签)
+            # 这里简单处理，假设 target_commitish 是分支名或提交哈希
+            res = run_git_command(repo_path, ['tag', tag_name, target_commitish])
+            if not res['success']:
+                flash(f'创建标签失败: {res["stderr"]}', 'error')
+                return redirect(url_for('new_release', repo_name=clean_name))
+        
+        # 创建数据库记录
+        release_id = db.create_release(clean_name, tag_name, target_commitish, name, body, is_prerelease=is_prerelease)
+        
+        # 处理文件上传
+        files = request.files.getlist('assets')
+        upload_dir = os.path.join(DATA_DIR, clean_name, 'releases', str(release_id))
+        if files:
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+                
+            for file in files:
+                if file and file.filename:
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(upload_dir, filename)
+                    file.save(file_path)
+                    
+                    # 获取文件大小
+                    size = os.path.getsize(file_path)
+                    
+                    # 保存资产记录
+                    db.add_release_asset(release_id, filename, file.content_type, size, file_path)
+        
+        flash('发布版本创建成功', 'success')
+        return redirect(url_for('view_releases', repo_name=clean_name))
+        
+    return render_template('new_release.html', repo_name=clean_name, tags=tags)
+
+@app.route('/<repo_name>/releases/delete/<int:release_id>', methods=['POST'])
+@require_auth
+def delete_release_route(repo_name, release_id):
+    """删除发布版本"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    
+    # 验证归属 (虽然数据库ID是唯一的，但检查一下更好)
+    release = db.get_release(release_id)
+    if not release or release['repo_name'] != clean_name:
+        abort(404)
+        
+    # 删除文件
+    asset_paths = db.delete_release(release_id)
+    for path in asset_paths:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except:
+                pass
+    
+    # 尝试删除该 release 的目录
+    release_dir = os.path.join(DATA_DIR, clean_name, 'releases', str(release_id))
+    if os.path.exists(release_dir):
+        try:
+            shutil.rmtree(release_dir)
+        except:
+            pass
+            
+    flash('发布版本已删除', 'success')
+    return redirect(url_for('view_releases', repo_name=clean_name))
+
+@app.route('/<repo_name>/releases/assets/<int:asset_id>/<filename>')
+def download_asset(repo_name, asset_id, filename):
+    """下载资产"""
+    clean_name = repo_name[:-4] if repo_name.endswith('.git') else repo_name
+    
+    asset = db.get_asset(asset_id)
+    if not asset: abort(404)
+    
+    # 简单的安全检查
+    if asset['name'] != filename:
+        abort(404)
+        
+    if os.path.exists(asset['path']):
+        return send_file(asset['path'], as_attachment=True, download_name=asset['name'])
+    else:
+        abort(404)
 
 if __name__ == '__main__':
     import socket
