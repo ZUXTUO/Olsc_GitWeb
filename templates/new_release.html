@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+
+{% block title %}起草新发行版 · {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    <h2 style="margin-bottom: 24px; font-weight: 400; font-size: 24px;">起草新发行版</h2>
+
+    <form action="{{ url_for('new_release', repo_name=repo_name) }}" method="POST" enctype="multipart/form-data">
+        <div
+            style="background: var(--color-canvas-subtle); padding: 16px; border: 1px solid var(--color-border-default); border-radius: 6px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">标签版本</label>
+                    <div style="position: relative;">
+                        <input type="text" name="tag_name" list="tags-list" class="form-control" placeholder="v1.0.0"
+                            required
+                            style="width: 100%; padding: 5px 12px; height: 32px; background: var(--color-canvas-default); color: var(--color-fg-default); border: 1px solid var(--color-border-default); border-radius: 6px;">
+                        <datalist id="tags-list">
+                            {% for tag in tags %}
+                            <option value="{{ tag }}">
+                                {% endfor %}
+                        </datalist>
+                    </div>
+                    <p style="font-size: 12px; color: var(--color-fg-muted); margin-top: 4px;">选择现有标签，或在发布时创建新标签。</p>
+                </div>
+
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">目标分支</label>
+                    <select name="target_commitish" class="form-control"
+                        style="width: 100%; padding: 5px 12px; height: 32px; background: var(--color-canvas-default); color: var(--color-fg-default); border: 1px solid var(--color-border-default); border-radius: 6px;">
+                        <option value="master">master</option>
+                        <option value="main">main</option>
+                        <option value="HEAD">HEAD</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">发行版标题</label>
+            <input type="text" name="name" class="form-control" placeholder="发行版标题"
+                style="width: 100%; padding: 5px 12px; height: 32px; background: var(--color-canvas-default); color: var(--color-fg-default); border: 1px solid var(--color-border-default); border-radius: 6px;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">描述此发行版</label>
+            <textarea name="body" class="form-control" placeholder="描述此发行版..."
+                style="width: 100%; min-height: 200px; padding: 12px; font-family: monospace; background: var(--color-canvas-default); color: var(--color-fg-default); border: 1px solid var(--color-border-default); border-radius: 6px;"></textarea>
+            <p style="font-size: 12px; color: var(--color-fg-muted); margin-top: 4px;">支持 Markdown。</p>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">附加二进制文件</label>
+            <div
+                style="border: 1px dashed var(--color-border-default); padding: 32px; text-align: center; border-radius: 6px; background: var(--color-canvas-subtle); position: relative; transition: all 0.2s;">
+                <p style="margin-bottom: 16px; color: var(--color-fg-muted);">拖拽文件到此处或点击选择文件来附加二进制文件。</p>
+                <input type="file" name="assets" multiple id="file-input"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                <button type="button" class="btn" style="pointer-events: none;">选择文件</button>
+                <div id="file-list" style="margin-top: 16px; text-align: left; font-size: 13px;"></div>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById('file-input').addEventListener('change', function (e) {
+                const list = document.getElementById('file-list');
+                list.innerHTML = '';
+                if (this.files.length > 0) {
+                    const ul = document.createElement('ul');
+                    ul.style.listStyle = 'none';
+                    ul.style.padding = '0';
+                    for (let i = 0; i < this.files.length; i++) {
+                        const li = document.createElement('li');
+                        li.innerHTML = '<i class="fas fa-file"></i> ' + this.files[i].name + ' (' + (this.files[i].size / 1024).toFixed(1) + ' KB)';
+                        li.style.marginBottom = '4px';
+                        ul.appendChild(li);
+                    }
+                    list.appendChild(ul);
+                }
+            });
+        </script>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" name="is_prerelease" value="1">
+                <span style="font-weight: 600;">设为预发布版本</span>
+            </label>
+            <p style="font-size: 12px; color: var(--color-fg-muted); margin-left: 24px;">我们会标记此版本尚未准备好用于生产环境。</p>
+        </div>
+
+        <div style="border-top: 1px solid var(--color-border-default); padding-top: 16px;">
+            <button type="submit" class="btn btn-primary">发布发行版</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

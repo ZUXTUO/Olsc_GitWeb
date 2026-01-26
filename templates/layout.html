@@ -21,14 +21,14 @@
 
         .flash-error {
             background-color: rgba(248, 81, 73, 0.1);
-            
+
             border-color: rgba(248, 81, 73, 0.4);
             color: #ff7b72;
         }
 
         .flash-success {
             background-color: rgba(63, 185, 80, 0.1);
-            
+
             border-color: rgba(63, 185, 80, 0.4);
             color: #56d364;
         }
@@ -91,6 +91,10 @@
                     class="UnderlineNav-item {% if 'tags' in request.path %}selected{% endif %}">
                     <i class="fas fa-tag"></i> 标签
                 </a>
+                <a href="{{ url_for('view_releases', repo_name=repo_name) }}"
+                    class="UnderlineNav-item {% if 'releases' in request.path %}selected{% endif %}">
+                    <i class="fas fa-rocket"></i> 发行版
+                </a>
                 <a href="{{ url_for('compare_nodes', repo_name=repo_name) }}"
                     class="UnderlineNav-item {% if 'compare' in request.path %}selected{% endif %}">
                     <i class="fas fa-exchange-alt"></i> 比较
@@ -128,7 +132,7 @@
     </footer>
 
     <script>
-        
+
         async function gitAction(repoName, action, payload = {}) {
             let actionName = action;
             if (action === 'pull') actionName = '拉取';

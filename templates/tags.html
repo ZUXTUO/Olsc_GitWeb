@@ -23,6 +23,18 @@
             </div>
             {% endif %}
         </div>
+        {% if session.get('authenticated') %}
+        <div>
+            <form action="{{ url_for('delete_tag', repo_name=repo_name) }}" method="POST"
+                onsubmit="return confirm('确定要删除标签 {{ tag.name }} 吗？');" style="margin: 0;">
+                <input type="hidden" name="tag_name" value="{{ tag.name }}">
+                <button type="submit" class="btn btn-sm btn-danger-outline"
+                    style="border-color: rgba(248,81,73,0.4); color: #f85149;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+        </div>
+        {% endif %}
     </div>
     {% else %}
     <div style="padding: 40px; text-align: center; color: var(--color-fg-muted);">

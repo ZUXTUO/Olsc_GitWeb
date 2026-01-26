@@ -1,0 +1,138 @@
+{% extends "layout.html" %}
+
+{% block title %}发行版 · {{ repo_name }}{% endblock %}
+
+{% block content %}
+<div class="releases-container" style="max-width: 900px; margin: 0 auto;">
+    <div class="releases-header"
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 style="font-weight: 400; font-size: 24px;">发行版</h2>
+        {% if session.get('authenticated') %}
+        <a href="{{ url_for('new_release', repo_name=repo_name) }}" class="btn btn-primary">起草新发行版</a>
+        {% endif %}
+    </div>
+
+    {% if not releases %}
+    <div class="blankslate"
+        style="text-align: center; padding: 40px; background: var(--color-canvas-subtle); border-radius: 6px;">
+        <h3>暂无发行版</h3>
+        <p>创建一个发行版来打包软件、发布日志和二进制文件。</p>
+    </div>
+    {% else %}
+    <div class="timeline">
+        {% for release in releases %}
+        <div class="release-entry"
+            style="display: flex; gap: 24px; padding-bottom: 40px; border-bottom: 1px solid var(--color-border-default); margin-bottom: 40px; flex-direction: column;">
+
+            <div class="release-meta" style="flex: 0 0 200px;">
+                <div style="font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-tag"></i>
+                    <span style="font-weight: 600;">{{ release.tag_name }}</span>
+                </div>
+
+                <div style="margin-top: 8px; font-size: 12px; color: var(--color-fg-muted);">
+                    <i class="fas fa-code-branch"></i>
+                    <code>{{ release.target_commitish }}</code>
+                </div>
+
+                {% if release.is_prerelease %}
+                <div style="margin-top: 8px;">
+                    <span class="Label Label--attention">预发布</span>
+                </div>
+                {% endif %}
+
+                {% if loop.first and not release.is_prerelease %}
+                <div style="margin-top: 8px;">
+                    <span class="Label Label--success">最新</span>
+                </div>
+                {% endif %}
+
+                <div style="margin-top: 12px; font-size: 12px; color: var(--color-fg-muted);">
+                    {{ release.created_at }}
+                </div>
+            </div>
+
+            <div class="release-body" style="flex: 1;">
+                <h1 style="font-size: 24px; margin-bottom: 16px; border-bottom: 0;">{{ release.name or release.tag_name
+                    }}</h1>
+
+                <div class="markdown-body">
+                    {{ release.body | markdown | safe }}
+                </div>
+
+                <div class="assets-box"
+                    style="margin-top: 24px; border: 1px solid var(--color-border-default); border-radius: 6px;">
+                    <div class="assets-header"
+                        style="padding: 8px 16px; background: var(--color-canvas-subtle); border-bottom: 1px solid var(--color-border-default); font-weight: 600;">
+                        资产
+                    </div>
+
+                    {% for asset in release.assets %}
+                    <div class="asset-row"
+                        style="padding: 12px 16px; border-bottom: 1px solid var(--color-border-default); display: flex; justify-content: space-between; align-items: center;">
+                        <a href="{{ url_for('download_asset', repo_name=repo_name, asset_id=asset.id, filename=asset.name) }}"
+                            style="display: flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; color: var(--color-accent-fg);">
+                            <i class="fas fa-box" style="color: var(--color-fg-muted);"></i> {{ asset.name }}
+                        </a>
+                        <span style="color: var(--color-fg-muted); font-size: 12px;">{{ (asset.size / 1024 /
+                            1024)|round(2) }} MB</span>
+                    </div>
+                    {% endfor %}
+
+                    <div class="asset-row"
+                        style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <a href="{{ url_for('download_zip', repo_name=repo_name, ref=release.tag_name) }}"
+                            style="display: flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; color: var(--color-accent-fg);">
+                            <i class="fas fa-file-archive" style="color: var(--color-fg-muted);"></i> 源代码 (zip)
+                        </a>
+                    </div>
+                </div>
+
+                {% if session.get('authenticated') %}
+                <div style="margin-top: 16px; text-align: right;">
+                    <form action="{{ url_for('delete_release_route', repo_name=repo_name, release_id=release.id) }}"
+                        method="POST" onsubmit="return confirm('确定要删除此发行版吗？这将删除所有关联的资产文件。');">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                            style="color: #cf222e; background: transparent; border: 1px solid rgba(248,81,73,0.4);">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    @media (min-width: 768px) {
+        .release-entry {
+            flex-direction: row !important;
+        }
+    }
+
+    .Label {
+        display: inline-block;
+        padding: 0 7px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        border-radius: 2em;
+        border: 1px solid transparent;
+    }
+
+    .Label--success {
+        color: #3fb950;
+        border-color: #3fb950;
+        border: 1px solid;
+    }
+
+    .Label--attention {
+        color: #d29922;
+        border-color: #d29922;
+        border: 1px solid;
+    }
+</style>
+{% endblock %}
