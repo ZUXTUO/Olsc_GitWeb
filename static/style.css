@@ -979,7 +979,7 @@ input[type="text"]:focus {
     }
 }
 
-/* --- SelectMenu & Details Overlay (Added for Branch Popup) --- */
+
 .details-reset>summary {
     list-style: none;
 }
@@ -1097,7 +1097,7 @@ input[type="text"]:focus {
     text-align: center;
 }
 
-/* Utilities */
+
 .p-3 {
     padding: 16px !important;
 }

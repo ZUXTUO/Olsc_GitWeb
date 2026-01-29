@@ -84,7 +84,7 @@
 
     <form id="release-form" action="{{ url_for('new_release', repo_name=repo_name) }}" method="POST"
         enctype="multipart/form-data">
-        <!-- Tag and Branch Selection -->
+        
         <div
             style="background: var(--color-canvas-subtle); padding: 16px; border: 1px solid var(--color-border-default); border-radius: 6px; margin-bottom: 16px;">
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
@@ -115,14 +115,14 @@
             </div>
         </div>
 
-        <!-- Release Name -->
+        
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">发行版标题</label>
             <input type="text" name="name" class="form-control" placeholder="发行版标题"
                 style="width: 100%; padding: 5px 12px; height: 32px; background: var(--color-canvas-default); color: var(--color-fg-default); border: 1px solid var(--color-border-default); border-radius: 6px;">
         </div>
 
-        <!-- Body -->
+        
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">描述此发行版</label>
             <textarea name="body" class="form-control" placeholder="描述此发行版..."
@@ -130,23 +130,23 @@
             <p style="font-size: 12px; color: var(--color-fg-muted); margin-top: 4px;">支持 Markdown。</p>
         </div>
 
-        <!-- File Upload Section -->
+        
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">附加二进制文件</label>
 
             <div class="upload-area" id="drop-zone">
                 <p style="margin-bottom: 16px; color: var(--color-fg-muted); pointer-events: none;">
                     拖拽文件到此处或点击选择文件来附加二进制文件 (自动开始上传)</p>
-                <!-- Remove 'name' so it's not submitted with the form normally, handled by JS -->
+                
                 <input type="file" multiple id="file-input"
                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                 <button type="button" class="btn" style="pointer-events: none;">选择文件</button>
             </div>
 
-            <!-- Upload Queue/Progress -->
+            
             <div id="upload-list" style="margin-top: 16px;"></div>
 
-            <!-- Container for hidden inputs of successfully uploaded files -->
+            
             <div id="uploaded-keys-container"></div>
         </div>
 
@@ -160,7 +160,7 @@
 
         <div
             style="border-top: 1px solid var(--color-border-default); padding-top: 16px; display: flex; align-items: center; gap: 10px;">
-            <!-- Button hidden/disabled when uploading -->
+            
             <button type="submit" id="submit-btn" class="btn btn-primary" style="display: inline-block;">发布发行版</button>
             <span id="upload-status-text"
                 style="color: var(--color-fg-muted); font-size: 14px; display: none;">正在上传文件...</span>

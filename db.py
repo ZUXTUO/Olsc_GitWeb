@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-# 数据库文件路径
+
 DB_FILE = os.path.join(os.path.dirname(__file__), 'repos.db')
 
 def init_db():
@@ -9,7 +9,7 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # 创建仓库信息表
+
     cursor.executescript('''
         CREATE TABLE IF NOT EXISTS repositories (
             name TEXT PRIMARY KEY,
@@ -130,7 +130,7 @@ def get_repo_releases(repo_name):
     releases = []
     for row in cursor.fetchall():
         release_id = row[0]
-        # 获取资产
+
         asset_cursor = conn.cursor()
         asset_cursor.execute('SELECT id, name, size, created_at FROM release_assets WHERE release_id = ?', (release_id,))
         assets = [{'id': r[0], 'name': r[1], 'size': r[2], 'created_at': r[3]} for r in asset_cursor.fetchall()]
@@ -202,7 +202,7 @@ def delete_release(release_id):
     """删除发行版"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # 获取所有资产路径以便删除文件
+
     cursor.execute('SELECT path FROM release_assets WHERE release_id = ?', (release_id,))
     paths = [row[0] for row in cursor.fetchall()]
     
