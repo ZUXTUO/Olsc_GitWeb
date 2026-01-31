@@ -767,11 +767,26 @@ def view_file(repo_name, ref, filepath):
     content = ""
     html_content = ""
     
+    page = request.args.get('page', 1, type=int)
+    per_page = 2000
+    total_pages = 1
+
     try:
         if not (is_image or is_video or is_pdf):
-            content = res['stdout']
-            if len(content) > 20000:
-                 content = content[:20000] + "\n\n... (文件太大，仅显示前 20KB)"
+            full_content = res['stdout']
+            all_lines = full_content.splitlines(keepends=True)
+            total_lines = len(all_lines)
+            
+            if total_lines > 0:
+                total_pages = (total_lines + per_page - 1) // per_page
+            else:
+                total_pages = 1
+            
+            if page < 1: page = 1
+            if page > total_pages: page = total_pages
+            
+            start_index = (page - 1) * per_page
+            content = "".join(all_lines[start_index : start_index + per_page])
                  
             if is_markdown and markdown:
                 html_content = markdown.markdown(content, extensions=['fenced_code', 'tables', 'nl2br'])
@@ -787,12 +802,15 @@ def view_file(repo_name, ref, filepath):
                             filepath=filepath, 
                             content=content, 
                             is_markdown=is_markdown,
-    html_content=html_content,
+                            html_content=html_content,
                             is_image=is_image,
                             is_video=is_video,
                             is_pdf=is_pdf,
                             is_binary=is_binary,
-                            file_size=file_size)
+                            file_size=file_size,
+                            current_page=page,
+                            total_pages=total_pages,
+                            per_page=per_page)
 
 @app.route('/<repo_name>/commits', defaults={'ref': 'HEAD'})
 @app.route('/<repo_name>/commits/<ref>')
